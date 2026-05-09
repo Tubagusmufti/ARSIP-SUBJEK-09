@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K O M A</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+            user-select: none;
+        }
+
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: #000; color: #333; z-index: 1000; cursor: pointer;
+            font-family: 'Courier New', monospace; letter-spacing: 5px;
+            text-align: center;
+        }
+
+        #init-screen:hover { color: #555; }
+
+        /* Ruang Halusinasi */
+        #room {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at 50% 40%, #1a1a24 0%, #000 80%);
+            filter: blur(8px) contrast(150%) brightness(0.5);
+            z-index: 1; display: flex; justify-content: center; align-items: flex-end;
+            transition: filter 0.5s;
+        }
+
+        /* Jendela kamar rumah sakit palsu */
+        #window-light {
+            position: absolute; top: 20%; left: 10%; width: 20%; height: 50%;
+            background: linear-gradient(180deg, rgba(100,150,200,0.1) 0%, transparent 100%);
+            transform: perspective(500px) rotateY(30deg);
+        }
+
+        /* Entitas Siluet (Tidak memiliki wajah) */
+        #entity {
+            position: absolute; bottom: -10%; width: 200px; height: 600px;
+            background: #000;
+            border-radius: 40% 40% 0 0 / 20% 20% 0 0;
+            box-shadow: 0 -20px 50px rgba(0,0,0,1);
+            transform-origin: bottom center;
+            transform: scale(1);
+            transition: transform 0.1s;
+        }
+
+        /* Kelopak Mata */
+        #eyelid-top, #eyelid-bottom {
+            position: absolute; left: 0; width: 100vw; height: 50vh;
+            background: #000; z-index: 100;
+            box-shadow: 0 0 50px #000;
+        }
+
+        #eyelid-top { top: 0; border-bottom: 2px solid rgba(255,0,0,0.05); }
+        #eyelid-bottom { bottom: 0; border-top: 2px solid rgba(255,0,0,0.05); }
+
+        #flatline-overlay {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 999; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">
+        TIDAK ADA JALAN KELUAR.<br><br>
+        KLIK UNTUK TERBANGUN.<br>
+        GERAKKAN KURSOR SECARA AGRESIF UNTUK MEMBUKA MATA.
+    </div>
+
+    <div id="room">
+        <div id="window-light"></div>
+        <div id="entity"></div>
+    </div>
+
+    <div id="eyelid-top"></div>
+    <div id="eyelid-bottom"></div>
+
+    <div id="flatline-overlay"></div>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const lidTop = document.getElementById('eyelid-top');
+        const lidBottom = document.getElementById('eyelid-bottom');
+        const entity = document.getElementById('entity');
+        const room = document.getElementById('room');
+        const flatlineOverlay = document.getElementById('flatline-overlay');
+
+        let audioCtx;
+        let isAwake = false;
+        let struggle = 0; // Tingkat usaha pengguna untuk membuka mata
+        let bpm = 60;
+        let isFlatlining = false;
+
+        initScreen.addEventListener('click', () => {
+            // Mengunci kursor secara absolut (Pointer Lock API)
+            document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
+            document.body.requestPointerLock();
+
+            initScreen.style.opacity = '0';
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                initAudio();
+                isAwake = true;
+                engine();
+            }, 1000);
+        });
+
+        // Menangkap pergerakan mentah dari mouse
+        document.addEventListener('mousemove', (e) => {
+            if (!isAwake || isFlatlining) return;
+            
+            // Mengumpulkan delta pergerakan (meronta)
+            const movement = Math.abs(e.movementX) + Math.abs(e.movementY);
+            struggle += movement * 0.05; 
+            
+            if (struggle > 100) struggle = 100; // Batas maksimal mata terbuka
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Mesin Ventilator (Napas buatan)
+            const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < noiseBuffer.length; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.loop = true;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            
+            const lfo = audioCtx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.2; // Irama napas lambat
+            
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 800; 
+
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+            filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.1;
+
+            noise.connect(filter);
+            filter.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
+            
+            lfo.start();
+            noise.start();
+
+            loopEKG();
+        }
+
+        // Sintesis Monitor Jantung (EKG)
+        function playEKGBeep() {
+            if(!audioCtx || isFlatlining) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function loopEKG() {
+            if (isFlatlining) return;
+            playEKGBeep();
+            
+            // Jantung berdetak lebih cepat seiring kepanikan (struggle)
+            bpm = 60 + (struggle * 1.5);
+            const interval = (60 / bpm) * 1000;
+            
+            setTimeout(loopEKG, interval);
+        }
+
+        // Akhir dari eksperimen
+        function triggerFlatline() {
+            isFlatlining = true;
+            document.exitPointerLock();
+            
+            flatlineOverlay.style.display = 'block';
+
+            // Continuous Sine Wave (Kematian/Flatline)
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start();
+
+            // Modulasi perlahan meredup
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 5.0);
+            
+            setTimeout(() => { osc.stop(); }, 5000);
+        }
+
+        function engine() {
+            if (isFlatlining) return;
+
+            // Peluruhan (Jika Anda berhenti menggerakkan mouse, kelopak mata tertutup)
+            struggle *= 0.96; 
+            
+            // Kalkulasi ukuran kelopak mata (0 sampai 50vh)
+            let lidHeight = 50 - (struggle * 0.5);
+            if (lidHeight < 0) lidHeight = 0;
+            
+            lidTop.style.height = lidHeight + 'vh';
+            lidBottom.style.height = lidHeight + 'vh';
+
+            // Semakin Anda meronta, entitas semakin besar dan jelas (mendekat)
+            let scale = 1 + (struggle * 0.03);
+            let blur = 8 - (struggle * 0.06);
+            if (blur < 1) blur = 1;
+
+            entity.style.transform = `scale(${scale})`;
+            room.style.filter = `blur(${blur}px) contrast(150%) brightness(${0.5 + (struggle*0.005)})`;
+
+            // Klimaks: Jika Anda meronta terlalu keras dan mata terbuka penuh, sistem mati
+            if (struggle > 98) {
+                triggerFlatline();
+                return;
+            }
+
+            requestAnimationFrame(engine);
+        }
+    </script>
+</body>
+</html>

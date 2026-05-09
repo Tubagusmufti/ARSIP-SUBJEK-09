@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E N T I T A S</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+        }
+        canvas {
+            display: block; width: 100%; height: 100%;
+        }
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #555; font-family: monospace;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10; cursor: pointer; letter-spacing: 5px; text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">INisiasi Akses Visual</div>
+    <canvas id="glcanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('glcanvas');
+        const gl = canvas.getContext('webgl');
+        const initScreen = document.getElementById('init-screen');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let audioCtx;
+
+        initScreen.addEventListener('click', () => {
+            initScreen.style.display = 'none';
+            initAudio();
+            render();
+        });
+
+        // Vertex Shader
+        const vsSource = `
+            attribute vec2 position;
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        `;
+
+        // Fragment Shader: Raymarching 3D Organic Tunnel
+        const fsSource = `
+            precision highp float;
+            uniform vec2 u_resolution;
+            uniform float u_time;
+
+            // Matriks Rotasi
+            mat2 rot(float a) {
+                float s = sin(a), c = cos(a);
+                return mat2(c, -s, s, c);
+            }
+
+            // Fungsi Jarak (Distance Field)
+            float map(vec3 p) {
+                // Pergerakan kamera ke depan
+                p.z += u_time * 1.5;
+                
+                // Distorsi ruang: Lorong berputar
+                p.xy *= rot(p.z * 0.15 + u_time * 0.2);
+                
+                // Dinding berdenyut (organic fleshy walls)
+                float pulse = sin(p.z * 2.0 - u_time * 3.0) * 0.2;
+                float d = length(p.xy) - (1.2 + pulse + sin(p.x * 4.0) * 0.1 * cos(p.y * 3.0));
+                
+                // Penambahan anomali geometris tajam di dinding
+                vec3 q = fract(p * 1.5) - 0.5;
+                float teeth = length(q) - 0.25;
+                
+                // Menggabungkan dinding dengan anomali (pengurangan ruang)
+                return max(d, -teeth);
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+                
+                // Setup Kamera dengan getaran konstan (Camera Shake)
+                vec3 ro = vec3(0.0, 0.0, -1.0);
+                ro.x += sin(u_time * 15.0) * 0.01;
+                ro.y += cos(u_time * 13.0) * 0.01;
+                
+                vec3 rd = normalize(vec3(uv, 1.0));
+                
+                // Raymarching Loop
+                float t = 0.0;
+                float d = 0.0;
+                for(int i = 0; i < 80; i++) {
+                    vec3 p = ro + rd * t;
+                    d = map(p);
+                    if(d < 0.001 || t > 15.0) break;
+                    t += d;
+                }
+                
+                // Pewarnaan Material (Darah dan Kegelapan)
+                vec3 col = vec3(0.0);
+                if(t < 15.0) {
+                    // Kedalaman kabut merah
+                    float depth = 1.0 - (t / 15.0);
+                    col = vec3(0.4, 0.0, 0.02) * depth;
+                    
+                    // Detail pembuluh nadi yang menyala
+                    col.r += smoothstep(0.4, 0.6, sin(t * 15.0 - u_time * 8.0)) * 0.2 * depth;
+                }
+                
+                // Efek Vignette Keras (Klaustrofobia)
+                float vignette = length(uv);
+                col *= smoothstep(0.8, 0.2, vignette);
+                
+                // Noise TV statis tingkat rendah
+                float noise = fract(sin(dot(uv, vec2(12.9898, 78.233)) + u_time) * 43758.5453);
+                col += vec3(noise * 0.05);
+
+                gl_FragColor = vec4(col, 1.0);
+            }
+        `;
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        }
+
+        const program = gl.createProgram();
+        gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+        gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        const posBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+        
+        const posLoc = gl.getAttribLocation(program, "position");
+        gl.enableVertexAttribArray(posLoc);
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+        const resLoc = gl.getUniformLocation(program, "u_resolution");
+        const timeLoc = gl.getUniformLocation(program, "u_time");
+
+        function render(time) {
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.uniform2f(resLoc, canvas.width, canvas.height);
+            gl.uniform1f(timeLoc, time * 0.001);
+            
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            requestAnimationFrame(render);
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Sintesis Audio Drone Invasif
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const filter = audioCtx.createBiquadFilter();
+            const gain = audioCtx.createGain();
+
+            osc1.type = 'sawtooth';
+            osc2.type = 'triangle';
+
+            // Frekuensi yang memicu ketidaknyamanan 
+            osc1.frequency.value = 35; 
+            osc2.frequency.value = 36.5; // Detak binaural
+
+            filter.type = 'lowpass';
+            filter.frequency.value = 200;
+
+            gain.gain.value = 0.6;
+
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc1.start();
+            osc2.start();
+
+            // Modulasi frekuensi filter secara acak untuk mensimulasikan pernapasan raksasa
+            setInterval(() => {
+                const newFreq = 100 + Math.random() * 300;
+                filter.frequency.exponentialRampToValueAtTime(newFreq, audioCtx.currentTime + 2.0);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

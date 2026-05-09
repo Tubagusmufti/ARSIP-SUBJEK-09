@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBSERVASI</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #030303; overflow: hidden; cursor: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #noise-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10; opacity: 0.05;
+            background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+        }
+
+        #vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+            background: radial-gradient(circle, transparent 20%, #000 80%);
+        }
+
+        .eye-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; gap: 100px; z-index: 2; opacity: 0.1; transition: opacity 2s;
+        }
+
+        .eye {
+            width: 30px; height: 15px; background: #111; border-radius: 50%;
+            position: relative; overflow: hidden; box-shadow: 0 0 20px rgba(255,255,255,0.05);
+        }
+
+        .pupil {
+            width: 8px; height: 8px; background: #fff; border-radius: 50%;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            transition: all 0.1s ease-out; box-shadow: 0 0 5px #fff;
+        }
+
+        #subliminal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; font-size: 5rem; font-weight: bold; z-index: 100;
+            opacity: 0; pointer-events: none; text-align: center;
+            text-shadow: 2px 2px 0px #f00, -2px -2px 0px #0ff;
+        }
+
+        #start-btn {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            padding: 10px 20px; background: transparent; color: #333; border: 1px solid #333;
+            font-family: inherit; font-size: 14px; cursor: pointer; z-index: 50; transition: 0.3s;
+        }
+
+        #start-btn:hover { color: #fff; border-color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="noise-overlay"></div>
+    <div id="vignette"></div>
+
+    <button id="start-btn">K O N F I R M A S I</button>
+
+    <div class="eye-container" id="eyes">
+        <div class="eye"><div class="pupil" id="pupil-l"></div></div>
+        <div class="eye"><div class="pupil" id="pupil-r"></div></div>
+    </div>
+
+    <div id="subliminal"></div>
+
+    <script>
+        const btn = document.getElementById('start-btn');
+        const eyesContainer = document.getElementById('eyes');
+        const pupilL = document.getElementById('pupil-l');
+        const pupilR = document.getElementById('pupil-r');
+        const subliminal = document.getElementById('subliminal');
+        
+        let audioCtx;
+        const messages = ["WAKTU HABIS", "PENUNDAAN", "KOSONG", "TERTINGGAL", "TIDAK ADA HASIL"];
+
+        // Inisiasi Audio dan Ketidaknyamanan
+        btn.addEventListener('click', () => {
+            btn.style.display = 'none';
+            document.body.style.cursor = 'none';
+            eyesContainer.style.opacity = '0.4';
+            initAudio();
+            startSubliminal();
+            startBreathingEffect();
+        });
+
+        // Pelacakan Kursor Konstan
+        document.addEventListener('mousemove', (e) => {
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+
+            function movePupil(pupilElement, eyeIndex) {
+                const rect = pupilElement.parentElement.getBoundingClientRect();
+                const eyeCenterX = rect.left + rect.width / 2;
+                const eyeCenterY = rect.top + rect.height / 2;
+
+                const angle = Math.atan2(mouseY - eyeCenterY, mouseX - eyeCenterX);
+                const distance = Math.min(rect.width / 4, Math.hypot(mouseX - eyeCenterX, mouseY - eyeCenterY) / 10);
+
+                const pupilX = Math.cos(angle) * distance;
+                const pupilY = Math.sin(angle) * distance;
+
+                pupilElement.style.transform = `translate(calc(-50% + ${pupilX}px), calc(-50% + ${pupilY}px))`;
+            }
+
+            movePupil(pupilL, 0);
+            movePupil(pupilR, 1);
+        });
+
+        // Generasi Frekuensi Disonan (Infrasound simulasi)
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            // Frekuensi yang memicu ketidaknyamanan bawah sadar
+            osc1.frequency.value = 40.0; 
+            osc2.frequency.value = 41.5; // Dissonansi 1.5Hz beat
+
+            osc1.type = 'sine';
+            osc2.type = 'sine';
+
+            gainNode.gain.value = 0.2; // Volume rendah, terasa seperti getaran
+            
+            osc1.connect(gainNode);
+            osc2.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc1.start();
+            osc2.start();
+
+            // Interupsi suara acak (glitch)
+            setInterval(() => {
+                if(Math.random() > 0.8) {
+                    const noiseOsc = audioCtx.createOscillator();
+                    noiseOsc.type = 'sawtooth';
+                    noiseOsc.frequency.value = Math.random() * 200 + 50;
+                    
+                    const noiseGain = audioCtx.createGain();
+                    noiseGain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                    
+                    noiseOsc.connect(noiseGain);
+                    noiseGain.connect(audioCtx.destination);
+                    noiseOsc.start();
+                    noiseOsc.stop(audioCtx.currentTime + 0.1);
+                }
+            }, 2000);
+        }
+
+        // Subliminal Messaging (1 frame exposure)
+        function startSubliminal() {
+            setInterval(() => {
+                if(Math.random() > 0.7) {
+                    subliminal.innerText = messages[Math.floor(Math.random() * messages.length)];
+                    subliminal.style.opacity = '0.8';
+                    document.body.style.backgroundColor = '#1a0000'; // Flash merah gelap
+                    
+                    setTimeout(() => {
+                        subliminal.style.opacity = '0';
+                        document.body.style.backgroundColor = '#030303';
+                    }, 16); // ~1 frame pada 60fps
+                }
+            }, Math.random() * 4000 + 2000); // Muncul acak antara 2-6 detik
+        }
+
+        // Efek pernapasan asinkron pada background
+        function startBreathingEffect() {
+            let breatheIn = true;
+            setInterval(() => {
+                const vignette = document.getElementById('vignette');
+                if(breatheIn) {
+                    vignette.style.background = 'radial-gradient(circle, transparent 15%, #000 85%)';
+                } else {
+                    vignette.style.background = 'radial-gradient(circle, transparent 25%, #000 75%)';
+                }
+                breatheIn = !breatheIn;
+            }, 3500); // Irama yang lambat dan berat
+        }
+    </script>
+</body>
+</html>

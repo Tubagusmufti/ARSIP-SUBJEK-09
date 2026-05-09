@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0 0 0 0</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+        }
+        canvas {
+            display: block; width: 100%; height: 100%;
+            filter: contrast(500%) brightness(50%) saturate(200%);
+        }
+        #ui-leak {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #100; font-family: 'serif'; font-size: 8vw;
+            pointer-events: none; z-index: 5; opacity: 0.1;
+            text-transform: uppercase; letter-spacing: -10px;
+        }
+        #gate {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1000; background: #000; color: #050505;
+            display: flex; justify-content: center; align-items: center;
+            font-family: monospace; letter-spacing: 30px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gate">HENTIKAN</div>
+    <div id="ui-leak">TIDAK ADA JALAN KELUAR</div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const gate = document.getElementById('gate');
+
+        canvas.width = window.innerWidth / 2; // Low res untuk efek korupsi data
+        canvas.height = window.innerHeight / 2;
+
+        let audioCtx;
+        let particles = [];
+        let frame = 0;
+
+        gate.addEventListener('click', () => {
+            gate.style.display = 'none';
+            initAudio();
+            animate();
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Binaural Beats yang merusak (Dissonant pulsing)
+            const oscL = audioCtx.createOscillator();
+            const oscR = audioCtx.createOscillator();
+            const gainL = audioCtx.createGain();
+            const gainR = audioCtx.createGain();
+            const panL = audioCtx.createStereoPanner();
+            const panR = audioCtx.createStereoPanner();
+
+            oscL.frequency.value = 40; // Alpha/Delta range
+            oscR.frequency.value = 44.5; // Creating a 4.5Hz pulse in brain
+            
+            panL.pan.value = -1;
+            panR.pan.value = 1;
+            
+            gainL.gain.value = gainR.gain.value = 0.3;
+
+            oscL.connect(panL); panL.connect(gainL); gainL.connect(audioCtx.destination);
+            oscR.connect(panR); panR.connect(gainR); gainR.connect(audioCtx.destination);
+
+            oscL.start(); oscR.start();
+
+            // Random "glitch" sounds
+            setInterval(() => {
+                if(Math.random() > 0.9) {
+                    const g = audioCtx.createOscillator();
+                    const gn = audioCtx.createGain();
+                    g.type = 'sawtooth';
+                    g.frequency.setValueAtTime(Math.random() * 50, audioCtx.currentTime);
+                    gn.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gn.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                    g.connect(gn); gn.connect(audioCtx.destination);
+                    g.start(); g.stop(audioCtx.currentTime + 0.5);
+                }
+            }, 1000);
+        }
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.v = {x: (Math.random()-0.5)*10, y: (Math.random()-0.5)*10};
+                this.life = 100;
+            }
+            update() {
+                this.x += this.v.x; this.y += this.v.y;
+                this.life -= 1;
+            }
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            for(let i=0; i<5; i++) {
+                particles.push(new Particle(e.clientX/2, e.clientY/2));
+            }
+        });
+
+        function animate() {
+            frame++;
+            
+            // Efek feedback (Trailing) - Ini yang membuat layar terasa "meleleh"
+            ctx.globalAlpha = 0.05;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = 1;
+
+            particles.forEach((p, i) => {
+                p.update();
+                if(p.life <= 0) particles.splice(i, 1);
+                
+                // Menggambar "serat" daging digital
+                ctx.strokeStyle = `rgb(${p.life*2.5}, 0, 0)`;
+                ctx.lineWidth = Math.random() * 5;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + Math.sin(frame*0.1)*20, p.y + Math.cos(frame*0.1)*20);
+                ctx.stroke();
+            });
+
+            // Random screen displacement (Korupsi visual)
+            if(frame % 20 === 0) {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                ctx.putImageData(imageData, Math.random()*10 - 5, 0);
+            }
+
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>

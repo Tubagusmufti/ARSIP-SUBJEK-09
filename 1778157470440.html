@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0 0 0 0 0</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Antarmuka Pemuatan Palsu */
+        #loading-screen {
+            text-align: center; color: #111; font-family: monospace;
+            z-index: 10;
+        }
+
+        #progress-bar {
+            width: 200px; height: 2px; background: #050505;
+            margin-top: 10px; position: relative;
+        }
+
+        #progress-fill {
+            width: 0%; height: 100%; background: #111;
+            transition: width 0.1s linear;
+        }
+
+        /* Layer Jump Scare */
+        #scare-layer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 1000; display: none; background: #000;
+        }
+
+        canvas {
+            width: 100%; height: 100%; filter: contrast(1000%) brightness(150%);
+        }
+
+        /* Strobe Overlay */
+        #strobe {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1001; pointer-events: none; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div id="status">SINKRONISASI DATA...</div>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+    </div>
+
+    <div id="scare-layer">
+        <canvas id="scare-canvas"></canvas>
+    </div>
+
+    <div id="strobe"></div>
+
+    <script>
+        const fill = document.getElementById('progress-fill');
+        const status = document.getElementById('status');
+        const scareLayer = document.getElementById('scare-layer');
+        const strobe = document.getElementById('strobe');
+        const canvas = document.getElementById('scare-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let progress = 0;
+        let audioCtx;
+
+        // Inisialisasi Audio pada klik pertama (keharusan browser)
+        window.addEventListener('click', () => {
+            if(!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                startLoading();
+            }
+        }, { once: true });
+
+        function startLoading() {
+            const interval = setInterval(() => {
+                progress += Math.random() * 0.5;
+                fill.style.width = progress + '%';
+                
+                if (progress > 100) {
+                    clearInterval(interval);
+                    setTimeout(triggerScare, 1500); // Jeda sunyi sebelum serangan
+                }
+            }, 50);
+        }
+
+        function triggerScare() {
+            scareLayer.style.display = 'block';
+            strobe.style.display = 'block';
+
+            // Audio: Ledakan White Noise + Melengking
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(3.0, audioCtx.currentTime); 
+            masterGain.connect(audioCtx.destination);
+
+            // Layer 1: High Pitch Scream
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(3000, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+            osc.connect(masterGain);
+            osc.start();
+
+            // Layer 2: Brown Noise (Deep Rumble)
+            const bufferSize = audioCtx.sampleRate * 1;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.connect(masterGain);
+            noise.start();
+
+            // Visual: Rendering Wajah Terdistorsi (Glitched Face)
+            canvas.width = 400;
+            canvas.height = 400;
+            
+            function drawFace() {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Menggambar siluet mata dan mulut yang "pecah"
+                ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#f00';
+                
+                // Mata kiri
+                ctx.beginPath();
+                ctx.arc(150 + Math.random()*20, 150 + Math.random()*20, 40 + Math.random()*50, 0, Math.PI*2);
+                ctx.fill();
+                
+                // Mata kanan
+                ctx.beginPath();
+                ctx.arc(250 + Math.random()*20, 150 + Math.random()*20, 40 + Math.random()*50, 0, Math.PI*2);
+                ctx.fill();
+
+                // Mulut
+                ctx.fillRect(100 + Math.random()*20, 250 + Math.random()*50, 200, 10 + Math.random()*100);
+
+                // Efek Strobe
+                strobe.style.backgroundColor = Math.random() > 0.5 ? 'rgba(255,255,255,0.5)' : 'transparent';
+                
+                if(audioCtx.currentTime < (audioCtx.currentTime + 1)) {
+                    requestAnimationFrame(drawFace);
+                }
+            }
+            drawFace();
+
+            // Terminasi Total
+            setTimeout(() => {
+                location.reload(); // Reset sistem untuk meninggalkan perasaan "unsettled"
+            }, 800);
+        }
+    </script>
+</body>
+</html>

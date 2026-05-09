@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V I S C E R A L</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        #target {
+            width: 10px; height: 10px; background: #fff;
+            border-radius: 50%; position: absolute;
+            box-shadow: 0 0 20px #fff; z-index: 100;
+        }
+
+        #glitch-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #f00; mix-blend-mode: color-burn;
+            opacity: 0; pointer-events: none; z-index: 50;
+        }
+
+        #init-gate {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #111; display: flex;
+            justify-content: center; align-items: center;
+            font-family: serif; letter-spacing: 15px; cursor: pointer;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-gate">SERAHKAN KENDALI</div>
+    <div id="target"></div>
+    <div id="glitch-overlay"></div>
+
+    <script>
+        const target = document.getElementById('target');
+        const gate = document.getElementById('init-gate');
+        const overlay = document.getElementById('glitch-overlay');
+
+        let audioCtx, masterGain;
+        let mX = window.innerWidth / 2, mY = window.innerHeight / 2;
+        let tX = mX, tY = mY;
+        let active = false;
+        let frame = 0;
+
+        gate.addEventListener('click', () => {
+            gate.style.display = 'none';
+            initAudio();
+            active = true;
+            render();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            mX = e.clientX;
+            mY = e.clientY;
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
+
+            // Suara gesekan logam frekuensi tinggi (Atonal)
+            function playScrape() {
+                if(!active) return;
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(Math.random() * 2000 + 3000, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.05);
+                g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                osc.connect(g); g.connect(masterGain);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+                setTimeout(playScrape, Math.random() * 200 + 50);
+            }
+            playScrape();
+        }
+
+        function triggerSpasm() {
+            // Suara ledakan audio yang pecah (Clipping)
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(50, audioCtx.currentTime);
+            g.gain.setValueAtTime(1.0, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            
+            overlay.style.opacity = '0.8';
+            setTimeout(() => overlay.style.opacity = '0', 50);
+        }
+
+        function render() {
+            if(!active) return;
+            frame++;
+
+            // Mekanisme Kontrol Invers & Spasme
+            // Kursor putih akan bergetar dan "meronta" dari posisi mouse asli
+            let jitterX = (Math.random() - 0.5) * (frame * 0.05);
+            let jitterY = (Math.random() - 0.5) * (frame * 0.05);
+            
+            tX += (mX - tX) * 0.1 + jitterX;
+            tY += (mY - tY) * 0.1 + jitterY;
+
+            target.style.left = tX + 'px';
+            target.style.top = tY + 'px';
+
+            // Jumpscare Spasmodik (Setiap interval tertentu)
+            if (frame % 200 === 0) {
+                triggerSpasm();
+                // Flash visual
+                document.body.style.backgroundColor = '#200';
+                setTimeout(() => document.body.style.backgroundColor = '#000', 30);
+            }
+
+            // Batas maksimal intensitas
+            if (frame > 2000) {
+                active = false;
+                document.body.innerHTML = "<div style='color:#fff; font-family:serif; display:flex; justify-content:center; align-items:center; height:100vh; letter-spacing:10px;'>KAU MERASAKANNYA?</div>";
+                // Suara tinnitus panjang di akhir
+                const t = audioCtx.createOscillator();
+                const tg = audioCtx.createGain();
+                t.frequency.value = 12000;
+                tg.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                tg.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 5);
+                t.connect(tg); tg.connect(audioCtx.destination);
+                t.start();
+            } else {
+                requestAnimationFrame(render);
+            }
+        }
+    </script>
+</body>
+</html>

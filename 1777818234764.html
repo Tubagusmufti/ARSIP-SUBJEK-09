@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S Y S T E M_F A I L U R E</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; color: #fff; overflow: hidden;
+            font-family: 'Courier New', monospace;
+            cursor: none;
+        }
+
+        /* Filter SVG untuk efek meleleh/distorsi organik */
+        .melt-effect {
+            filter: url('#distortionFilter');
+            width: 100vw; height: 100vh;
+            position: absolute; top: 0; left: 0;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+
+        .glitch-text {
+            font-size: 3rem; font-weight: bold; text-align: center;
+            text-shadow: 3px 0px 0px rgba(255,0,0,0.8), -3px 0px 0px rgba(0,255,255,0.8);
+            mix-blend-mode: exclusion;
+            user-select: none;
+        }
+
+        .cursor-ghost {
+            position: fixed; top: 0; left: 0;
+            width: 20px; height: 20px; background: red;
+            border-radius: 50%; pointer-events: none;
+            mix-blend-mode: screen; filter: blur(2px);
+            transition: transform 0.1s ease-out;
+            z-index: 9999;
+        }
+
+        #init-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; display: flex; justify-content: center; align-items: center;
+            z-index: 10000;
+        }
+
+        #init-btn {
+            padding: 15px 30px; font-family: inherit; font-size: 1.2rem;
+            background: #111; color: #555; border: 1px solid #333;
+            cursor: pointer; transition: 0.2s;
+        }
+
+        #init-btn:hover { background: #fff; color: #000; }
+        
+        .static-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noise"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noise)" opacity="0.1"/%3E%3C/svg%3E');
+            pointer-events: none; z-index: 9000; mix-blend-mode: overlay;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SVG Displacement Map -->
+    <svg style="display: none;">
+        <defs>
+            <filter id="distortionFilter">
+                <feTurbulence type="fractalNoise" baseFrequency="0.01 0.1" numOctaves="3" result="noise" id="turb" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G" id="disp" />
+            </filter>
+        </defs>
+    </svg>
+
+    <div id="init-layer">
+        <button id="init-btn">GRANT ACCESS</button>
+    </div>
+
+    <div class="melt-effect" id="main-container">
+        <div class="glitch-text" id="dynamic-text">I N I T I A L I Z I N G . . .</div>
+    </div>
+
+    <div class="static-overlay" id="static"></div>
+    <div class="cursor-ghost" id="ghost"></div>
+
+    <script>
+        const initBtn = document.getElementById('init-btn');
+        const initLayer = document.getElementById('init-layer');
+        const turb = document.getElementById('turb');
+        const disp = document.getElementById('disp');
+        const dynamicText = document.getElementById('dynamic-text');
+        const ghost = document.getElementById('ghost');
+        const staticOverlay = document.getElementById('static');
+
+        let audioCtx;
+        const cryptics = [
+            "DATA_CORRUPTED", "MEMORY_LEAK_DETECTED", "W E  A R E  H E R E",
+            "S E G M E N T A T I O N  F A U L T", "0x00000000", "L O O K  B E H I N D  Y O U",
+            "N U L L  P O I N T E R", "C O N T R O L_L O S T"
+        ];
+
+        // 1. Eksekusi Visual & Auditori
+        initBtn.addEventListener('click', () => {
+            initLayer.style.display = 'none';
+            initAudio();
+            startMeltdown();
+            startTextCorruption();
+        });
+
+        // 2. Cursor Parasit (Ghosting & Delay)
+        let mouseX = 0, mouseY = 0;
+        let ghostX = 0, ghostY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        function animateGhost() {
+            // Cursor merah mengikuti dengan delay dan getaran aneh
+            const dx = mouseX - ghostX;
+            const dy = mouseY - ghostY;
+            ghostX += dx * 0.05 + (Math.random() - 0.5) * 10;
+            ghostY += dy * 0.05 + (Math.random() - 0.5) * 10;
+            ghost.style.transform = `translate(${ghostX}px, ${ghostY}px) scale(${Math.random() * 1.5 + 0.5})`;
+            requestAnimationFrame(animateGhost);
+        }
+        animateGhost();
+
+        // 3. Efek SVG Meltdown Dinamis
+        let meltScale = 0;
+        let baseFreqY = 0.1;
+        function startMeltdown() {
+            setInterval(() => {
+                // Skala distorsi perlahan meningkat
+                meltScale += 0.5;
+                if(meltScale > 150) meltScale = 150; // Batas distorsi
+                disp.setAttribute('scale', meltScale);
+                
+                // Mutasi frekuensi turbulence
+                baseFreqY += 0.005;
+                turb.setAttribute('baseFrequency', `0.01 ${baseFreqY}`);
+
+                // Efek flash statis
+                if(Math.random() > 0.9) {
+                    staticOverlay.style.opacity = '0.8';
+                    document.body.style.filter = `invert(${Math.random() > 0.5 ? 1 : 0})`;
+                    setTimeout(() => {
+                        staticOverlay.style.opacity = '0.1';
+                        document.body.style.filter = 'none';
+                    }, 50);
+                }
+            }, 50);
+        }
+
+        // 4. Injeksi Teks Korupsi
+        function startTextCorruption() {
+            setInterval(() => {
+                let txt = cryptics[Math.floor(Math.random() * cryptics.length)];
+                // Acak huruf dengan karakter aneh
+                txt = txt.split('').map(char => Math.random() > 0.8 ? String.fromCharCode(33 + Math.random() * 90) : char).join('');
+                dynamicText.innerText = txt;
+                
+                // Pindah posisi acak yang ekstrem
+                dynamicText.style.transform = `translate(${(Math.random() - 0.5) * 50}vw, ${(Math.random() - 0.5) * 50}vh) scale(${Math.random() * 2 + 1})`;
+            }, 300);
+        }
+
+        // 5. Audio Teror (Algorithmic Drone & Screech)
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Background Drone (Brown Noise simulasi)
+            const bufferSize = audioCtx.sampleRate * 2;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                let white = Math.random() * 2 - 1;
+                output[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = output[i];
+                output[i] *= 3.5; // Kompensasi volume
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.loop = true;
+            
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.value = 400; // Suara gemuruh rendah
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.5;
+
+            noise.connect(noiseFilter);
+            noiseFilter.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
+            noise.start();
+
+            // Puncak Tinnitus (Sine wave frekuensi sangat tinggi mendadak)
+            setInterval(() => {
+                if(Math.random() > 0.7) {
+                    const osc = audioCtx.createOscillator();
+                    const oscGain = audioCtx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(12000 + Math.random() * 2000, audioCtx.currentTime); // 12kHz-14kHz piercing sound
+                    
+                    oscGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    oscGain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.1);
+                    oscGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+                    
+                    osc.connect(oscGain);
+                    oscGain.connect(audioCtx.destination);
+                    
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 2);
+
+                    // Sinkronisasi dengan teks saat suara melengking
+                    dynamicText.innerText = "S Y S T E M_F A I L U R E";
+                    dynamicText.style.color = "#f00";
+                    setTimeout(() => dynamicText.style.color = "#fff", 100);
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

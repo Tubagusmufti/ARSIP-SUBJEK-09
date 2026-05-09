@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>ENTROPI//SISTEM//KORUPSI</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Major+Mono+Display&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; }
+        
+        body, html {
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            color: #fff;
+            font-family: 'Major Mono Display', monospace;
+            perspective: 1500px;
+        }
+
+        #stage {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-style: preserve-3d;
+            z-index: 2;
+        }
+
+        #canvas-feedback {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.8;
+            mix-blend-mode: color-dodge;
+            pointer-events: none;
+        }
+
+        .meta-fragment {
+            position: absolute;
+            background: rgba(255,255,255,0.01);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+            padding: 5px;
+            font-size: 10px;
+            text-transform: uppercase;
+            pointer-events: auto;
+            user-select: none;
+            will-change: transform, opacity;
+            transition: border-color 0.1s, color 0.1s;
+        }
+
+        .meta-fragment:hover {
+            background: rgba(255,0,0,0.2);
+            border-color: #f00;
+            color: #fff;
+            z-index: 1000;
+        }
+
+        /* Tombol inisiasi yang aneh */
+        #init-trigger {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            background: none;
+            border: 2px solid #fff;
+            color: #fff;
+            font-family: 'Major Mono Display', monospace;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 9999;
+            transition: all 0.3s;
+        }
+
+        #init-trigger:hover {
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 50px #fff;
+        }
+
+        .overlay-glitch {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+            z-index: 100;
+        }
+
+    </style>
+</head>
+<body>
+
+    <button id="init-trigger">INISIASI//Kekacauan</button>
+    <canvas id="canvas-feedback"></canvas>
+    <div id="stage"></div>
+    <div class="overlay-glitch"></div>
+
+    <script>
+        const stage = document.getElementById('stage');
+        const canvas = document.getElementById('canvas-feedback');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const initBtn = document.getElementById('init-trigger');
+        let w, h;
+        let audioCtx, analyser, dataArray;
+        let isInitialized = false;
+
+        const words = ["GILA", "EKSPERIMEN", "PUSH//LIMIT", "ENTROPI", "KORUPSI", "NULL", "0xFF", "VOID", "NO//LOGIC", "CHAOS"];
+
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, w, h);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 1. Inisiasi (Wajib klik pengguna untuk Audio API)
+        initBtn.addEventListener('click', () => {
+            initBtn.style.display = 'none';
+            initializeAudio();
+            initializeDOMChaos();
+            isInitialized = true;
+            renderFeedbackLoop();
+        });
+
+        // 2. Audio Engine (Sintesis Suara Eksperimental Terkorupsi)
+        function initializeAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            // Buat Oscillator yang tidak stabil
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            // Modulation (FM Synthesis sederhana untuk suara 'rusak')
+            const modulator = audioCtx.createOscillator();
+            const modGain = audioCtx.createGain();
+            modulator.frequency.value = 10;
+            modGain.gain.value = 50;
+
+            osc.type = 'sawtooth';
+            osc.frequency.value = 50; // Frekuensi bass rendah
+
+            modulator.connect(modGain);
+            modGain.connect(osc.frequency);
+            osc.connect(gainNode);
+            gainNode.connect(analyser);
+            analyser.connect(audioCtx.destination);
+
+            gainNode.gain.value = 0.05; // Volume rendah agar tidak merusak speaker
+            osc.start();
+            modulator.start();
+
+            // Interaksi suara acak
+            setInterval(() => {
+                if(!isInitialized) return;
+                osc.frequency.setValueAtTime(50 + Math.random() * 200, audioCtx.currentTime);
+                modulator.frequency.setValueAtTime(Math.random() * 50, audioCtx.currentTime);
+            }, 500);
+        }
+
+        // 3. Brutal DOM Manipulation (Meta-Fragments)
+        function initializeDOMChaos() {
+            for(let i = 0; i < 150; i++) {
+                spawnFragment();
+            }
+        }
+
+        function spawnFragment() {
+            const el = document.createElement('div');
+            el.className = 'meta-fragment';
+            el.innerText = corruptText(words[Math.floor(Math.random() * words.length)]);
+            
+            // Koordinat 3D acak
+            const x = (Math.random() - 0.5) * 2000;
+            const y = (Math.random() - 0.5) * 2000;
+            const z = (Math.random() - 0.5) * 2000;
+            const rotX = Math.random() * 360;
+            const rotY = Math.random() * 360;
+
+            el.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+            el.style.opacity = Math.random() * 0.5 + 0.1;
+            
+            stage.appendChild(el);
+
+            // Perilaku fragmen yang koruptif
+            const mutator = setInterval(() => {
+                if(!isInitialized) return;
+                
+                // Variasi berdasarkan audio jika tersedia
+                let audioMod = 0;
+                if(dataArray) {
+                    analyser.getByteFrequencyData(dataArray);
+                    audioMod = dataArray[5] / 255;
+                }
+
+                if(Math.random() > 0.95) {
+                    el.innerText = corruptText(words[Math.floor(Math.random() * words.length)]);
+                }
+                
+                // Korupsi transformasi
+                const speed = 0.5 + audioMod * 2;
+                el.style.transform = `translate3d(${x + Math.sin(Date.now()*0.001*speed)*100}px, ${y + Math.cos(Date.now()*0.0012*speed)*100}px, ${z}px) rotateX(${rotX + Date.now()*0.02*speed}deg) rotateY(${rotY}deg)`;
+                
+                if(Math.random() > 0.99) {
+                    el.style.borderColor = `hsl(${Math.random()*360}, 100%, 50%)`;
+                    el.style.color = "#fff";
+                } else {
+                    el.style.borderColor = `rgba(255,255,255,${0.1 + audioMod})`;
+                    el.style.color = `rgba(255,255,255,${0.7 + audioMod})`;
+                }
+
+            }, 50);
+        }
+
+        // 4. Visual Feedback Loop (Korupsi Pixel)
+        let time = 0;
+        function renderFeedbackLoop() {
+            if(!isInitialized) return;
+
+            analyser.getByteFrequencyData(dataArray);
+            let avgFreq = 0;
+            for(let i=0; i<dataArray.length; i++) avgFreq += dataArray[i];
+            avgFreq /= dataArray.length;
+            let intensity = avgFreq / 255;
+
+            // Efek feedback: Salin frame sebelumnya dengan transformasi
+            ctx.globalCompositeOperation = 'source-over';
+            
+            // Shift warna dan distorsi posisi
+            ctx.save();
+            ctx.translate(w/2, h/2);
+            ctx.rotate(0.005 + intensity * 0.02); // Putar feedback berdasarkan suara
+            ctx.scale(1.01 + intensity * 0.01, 1.01 + intensity * 0.01); // Zoom in konstan
+            
+            // Terapkan chromatic aberration parsial saat menyalin
+            ctx.globalAlpha = 0.95; 
+            ctx.drawImage(canvas, -w/2 - 2, -h/2, w, h); // Red channel shift
+            ctx.globalAlpha = 0.95;
+            ctx.drawImage(canvas, -w/2 + 2, -h/2, w, h); // Blue channel shift
+            ctx.restore();
+
+            // Gambar elemen grafis acak berdasarkan audio di atas feedback
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.strokeStyle = `hsl(${(Date.now()*0.1)%360}, 100%, 50%)`;
+            ctx.lineWidth = intensity * 10;
+            
+            if(Math.random() > 0.8) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random()*w, Math.random()*h);
+                for(let i=0; i<10; i++) {
+                    ctx.lineTo(Math.random()*w, Math.random()*h);
+                }
+                ctx.stroke();
+            }
+
+            if(intensity > 0.5) {
+                ctx.fillStyle = `rgba(255,255,255,${intensity * 0.2})`;
+                ctx.fillRect(Math.random()*w, Math.random()*h, intensity*w*0.5, 2);
+            }
+
+            requestAnimationFrame(renderFeedbackLoop);
+        }
+
+        // Generator Teks Unicode Terjangkit
+        function corruptText(text) {
+            let corrupted = "";
+            for(let i = 0; i < text.length; i++) {
+                corrupted += text[i];
+                if(Math.random() > 0.7) {
+                    corrupted += String.fromCharCode(0x0300 + Math.random() * 0x006F);
+                }
+            }
+            return corrupted;
+        }
+
+        // Interaksi Kursor (Destabilisasi Spasial)
+        document.addEventListener('mousemove', (e) => {
+            if(!isInitialized) return;
+            const rx = (e.clientY / h - 0.5) * -30;
+            const ry = (e.clientX / w - 0.5) * 30;
+            stage.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+            
+            // Ganggu frekuensi audio berdasarkan kursor
+            if(audioCtx) {
+                // audioCtx.listener.setPosition( (e.clientX/w)*2-1, (e.clientY/h)*2-1, 0); // Panning spasial
+            }
+        });
+
+    </script>
+</body>
+</html>

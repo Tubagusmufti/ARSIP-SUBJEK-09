@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARSIP // SUBJEK-09</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --blood: #8b0000;
+            --dark-blood: #3a0000;
+            --bone: #e8e6e1;
+            --rot: #2a1810;
+            --black: #050505;
+        }
+
+        body {
+            background-color: var(--black);
+            color: var(--bone);
+            font-family: 'Courier Prime', monospace;
+            overflow-x: hidden;
+            cursor: crosshair;
+            min-height: 100vh;
+        }
+
+        /* Layer darah yang menetes */
+        .blood-drip {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            background: 
+                radial-gradient(ellipse at 20% 0%, rgba(139,0,0,0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 0%, rgba(139,0,0,0.1) 0%, transparent 40%);
+        }
+
+        .drip {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(to bottom, transparent, var(--blood), var(--dark-blood));
+            opacity: 0.6;
+            animation: drip-fall linear infinite;
+        }
+
+        @keyframes drip-fall {
+            0% { height: 0; top: 0; opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.6; }
+            100% { height: 300px; top: 100vh; opacity: 0; }
+        }
+
+        /* Efek goresan */
+        .scratch {
+            position: fixed;
+            pointer-events: none;
+            z-index: 40;
+            opacity: 0.03;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 2px,
+                rgba(255,255,255,0.1) 2px,
+                rgba(255,255,255,0.1) 3px
+            );
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Header yang disturbing */
+        .header {
+            padding: 40px 20px 20px;
+            text-align: center;
+            position: relative;
+            border-bottom: 1px solid var(--dark-blood);
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: var(--blood);
+            box-shadow: 0 0 20px var(--blood);
+            animation: pulse-border 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { opacity: 0.3; width: 200px; }
+            50% { opacity: 1; width: 300px; box-shadow: 0 0 40px var(--blood); }
+        }
+
+        .case-number {
+            font-size: 0.7rem;
+            color: var(--blood);
+            letter-spacing: 8px;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        .title {
+            font-family: 'Special Elite', cursive;
+            font-size: 2.5rem;
+            color: var(--bone);
+            text-shadow: 
+                2px 2px 0px var(--blood),
+                -1px -1px 0px rgba(139,0,0,0.5);
+            letter-spacing: 5px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .title::before {
+            content: 'ARSIP // SUBJEK-09';
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            color: var(--blood);
+            opacity: 0.3;
+            z-index: -1;
+            animation: glitch-shift 4s infinite;
+        }
+
+        @keyframes glitch-shift {
+            0%, 90%, 100% { transform: translate(0); }
+            91% { transform: translate(-3px, 2px); }
+            92% { transform: translate(3px, -2px); }
+            93% { transform: translate(0); }
+        }
+
+        .subtitle {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #666;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+
+        .subtitle .redacted {
+            background: var(--bone);
+            color: transparent;
+            padding: 0 5px;
+            cursor: not-allowed;
+            user-select: none;
+        }
+
+        .warning-banner {
+            margin-top: 20px;
+            padding: 8px;
+            border: 1px solid var(--blood);
+            color: var(--blood);
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            display: inline-block;
+            animation: flicker 2s infinite;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+            52% { opacity: 0.1; }
+            54% { opacity: 1; }
+        }
+
+        /* Grid kotak-kotak */
+        .archive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Kotak individual */
+        .evidence-box {
+            background: linear-gradient(135deg, rgba(10,10,10,0.95), rgba(20,10,10,0.9));
+            border: 1px solid #333;
+            padding: 25px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            text-decoration: none;
+            display: block;
+        }
+
+        .evidence-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(139,0,0,0.1), transparent);
+            transition: left 0.6s;
+        }
+
+        .evidence-box:hover::before {
+            left: 100%;
+        }
+
+        .evidence-box:hover {
+            border-color: var(--blood);
+            box-shadow: 
+                0 0 30px rgba(139,0,0,0.3),
+                inset 0 0 30px rgba(139,0,0,0.05);
+            transform: translateY(-3px) scale(1.01);
+        }
+
+        .evidence-box:hover .box-title {
+            color: #ff4444;
+            text-shadow: 0 0 10px rgba(255,0,0,0.5);
+        }
+
+        .evidence-box:hover .box-number {
+            color: var(--blood);
+        }
+
+        .box-number {
+            font-size: 0.65rem;
+            color: #444;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+            transition: color 0.3s;
+            font-family: 'Courier Prime', monospace;
+        }
+
+        .box-title {
+            font-family: 'Special Elite', cursive;
+            font-size: 1.3rem;
+            color: var(--bone);
+            margin-bottom: 12px;
+            transition: all 0.3s;
+            position: relative;
+            display: inline-block;
+        }
+
+        .box-desc {
+            font-size: 0.8rem;
+            color: #777;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            font-family: 'Courier Prime', monospace;
+        }
+
+        .box-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.65rem;
+            color: #444;
+            border-top: 1px solid #222;
+            padding-top: 10px;
+            letter-spacing: 1px;
+        }
+
+        .status {
+            color: var(--blood);
+            animation: blink-status 3s infinite;
+        }
+
+        @keyframes blink-status {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .tag {
+            background: rgba(139,0,0,0.15);
+            color: var(--blood);
+            padding: 2px 8px;
+            font-size: 0.6rem;
+            border: 1px solid rgba(139,0,0,0.3);
+        }
+
+        /* Stain darah di pojok */
+        .blood-stain {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(139,0,0,0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(8px);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .evidence-box:hover .blood-stain {
+            opacity: 1;
+        }
+
+        /* Footer disturbing */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            border-top: 1px solid var(--dark-blood);
+            color: #333;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            position: relative;
+        }
+
+        .footer::before {
+            content: '◆';
+            color: var(--blood);
+            display: block;
+            margin-bottom: 15px;
+            animation: rotate-diamond 4s linear infinite;
+        }
+
+        @keyframes rotate-diamond {
+            0% { transform: rotate(0deg); opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { transform: rotate(360deg); opacity: 0.3; }
+        }
+
+        /* Efek hover kursor */
+        .cursor-follower {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 1px solid rgba(139,0,0,0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.1s;
+            mix-blend-mode: difference;
+        }
+
+        /* Flash subliminal */
+        .subliminal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            color: rgba(255,0,0,0.08);
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0;
+            font-family: 'Special Elite', cursive;
+            letter-spacing: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .title { font-size: 1.5rem; }
+            .archive-grid { grid-template-columns: 1fr; padding: 20px; }
+        }
+
+        /* Scrollbar custom */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--black);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--dark-blood);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--blood);
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+
+    <div class="blood-drip" id="bloodLayer"></div>
+    <div class="scratch"></div>
+    <div class="cursor-follower" id="cursor"></div>
+    <div class="subliminal" id="subliminal">MEREKA MENUNGGUMU</div>
+
+    <header class="header">
+        <div class="case-number">DEWAN PENELITIAN PSIKOLOGI EKSTREM // DOKUMEN RAHASIA</div>
+        <h1 class="title">ARSIP // SUBJEK-09</h1>
+        <p class="subtitle">
+            Kumpulan rekaman visual dan auditori yang dikumpulkan dari 
+            <span class="redacted" title="AKSES DITOLAK">[DATA DIHAPUS]</span> 
+            pada tanggal <span class="redacted" title="AKSES DITOLAK">[REDACTED]</span>. 
+            Setiap kotak berisi manifestasi digital dari pikiran yang telah terkorupsi. 
+            <strong style="color:var(--blood)">Klik dengan risiko Anda sendiri.</strong>
+        </p>
+        <div class="warning-banner">⚠ PERINGATAN: KONTEN MENYEBABKAN KETIDAKNYAMAN PSIKOLOGIS ⚠</div>
+    </header>
+
+    <main class="archive-grid">
+
+        <a href="1777816060584.html" class="evidence-box">
+            <div class="blood-stain" style="top: -10px; right: -10px;"></div>
+            <div class="box-number">EVIDENCE #001</div>
+            <div class="box-title">Cognitive Overload</div>
+            <div class="box-desc">
+                Fraktal umpan balik visual yang memakan dirinya sendiri. DOM yang terinfeksi menyerang peramban dari dalam. Kursor Anda bukan lagi milik Anda.
+            </div>
+            <div class="box-meta">
+                <span class="status">● AKTIF</span>
+                <span class="tag">FEEDBACK LOOP</span>
+            </div>
+        </a>
+
+        <a href="1777816308896.html" class="evidence-box">
+            <div class="blood-stain" style="bottom: -10px; left: -10px;"></div>
+            <div class="box-number">EVIDENCE #002</div>
+            <div class="box-title">Kehampaan Komputasional</div>
+            <div class="box-desc">
+                Ruang hampa yang dirender melalui raymarching WebGL. Tidak ada batas, tidak ada lantai, hanya kekosongan yang menghitung setiap piksel kehancuran Anda.
+            </div>
+            <div class="box-meta">
+                <span class="status">● AKTIF</span>
+                <span class="tag">VOID RENDER</span>
+            </div>
+        </a>
+
+        <a href="1777816467165.html" class="evidence-box">
+            <div class="blood-stain" style="top: 50%; right: -15px;"></div>
+            <div class="box-number">EVIDENCE #003</div>
+            <div class="box-title">Entropi // Sistem // Korupsi</div>
+            <div class="box-desc">
+                Audio engine eksperimental yang tidak stabil. Fragmentasi meta-DOM dalam ruang 3D. Setiap fragmen adalah sebuah pikiran yang terputus dari kesadaran.
+            </div>
+            <div class="box-meta">
+                <span class="status">● BERDENYUT</span>
+                <span class="tag">AUDIO-VISUAL</span>
+            </div>
+        </a>
+
+        <a href="1777816681083.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #004</div>
+            <div class="box-title">Superposisi // Kolaps</div>
+            <div class="box-desc">
+                Eksperimen kuantum yang gagal. Observasi Anda menghancurkan realitas. Gerakkan kursor untuk menyaksikan fungsi gelombang runtuh menjadi kekacauan absolut.
+            </div>
+            <div class="box-meta">
+                <span class="status">● TERAMATI</span>
+                <span class="tag">QUANTUM</span>
+            </div>
+        </a>
+
+        <a href="1777816735072.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #005</div>
+            <div class="box-title">Limit Komputasi: Mandelbulb</div>
+            <div class="box-desc">
+                Fraktal 3D yang berputar tanpa ampun. Setiap iterasi mendalami struktur matematika yang seharusnya tidak bisa dibayangkan oleh otak manusia.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MERENDER</span>
+                <span class="tag">RAYMARCHING</span>
+            </div>
+        </a>
+
+        <a href="1777817880893.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #006</div>
+            <div class="box-title">Entropi Terminal // OOM</div>
+            <div class="box-desc">
+                Simulasi kehabisan memori. Memori bocor secara eksponensial. Layar melumer melalui feedback loop WebGL. Sistem akan mati, tetapi tidak dengan cepat.
+            </div>
+            <div class="box-meta">
+                <span class="status">● OVERFLOW</span>
+                <span class="tag">MEMORY LEAK</span>
+            </div>
+        </a>
+
+        <a href="1777818165228.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #007</div>
+            <div class="box-title">Observasi</div>
+            <div class="box-desc">
+                Sepasang mata yang mengikuti setiap gerakan Anda. Frekuensi disonan 40Hz yang merangsang ketidaknyamanan bawah sadar. Pesan subliminal menyelinap setiap 2-6 detik.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENATAP</span>
+                <span class="tag">SURVEILLANCE</span>
+            </div>
+        </a>
+
+        <a href="1777818234764.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #008</div>
+            <div class="box-title">System Failure</div>
+            <div class="box-desc">
+                SVG displacement map yang meleleh secara organik. Kursor parasit mengikuti dengan delay dan getaran. Tinnitus sintetis 12-14kHz menusuk telinga tanpa peringatan.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MELELEH</span>
+                <span class="tag">MELTDOWN</span>
+            </div>
+        </a>
+
+        <a href="1777819085780.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #009</div>
+            <div class="box-title">Terminal // 0xDEAD</div>
+            <div class="box-desc">
+                Terminal yang mengetahui lokasi dan IP Anda. Detak jantung yang semakin cepat. Kamera diaktifkan. Jumpscare terprogram setelah 3.5 detik keheningan mati.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENGINTAI</span>
+                <span class="tag">TERMINAL</span>
+            </div>
+        </a>
+
+        <a href="1777819622344.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #010</div>
+            <div class="box-title">Entitas</div>
+            <div class="box-desc">
+                Terowongan organik berdinding daging yang berdenyut. Raymarching 3D dengan getaran kamera konstan. Drone invasif 35Hz dengan detak binaural yang salah.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENDEKAT</span>
+                <span class="tag">ORGANIC</span>
+            </div>
+        </a>
+
+        <a href="1777819726808.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #011</div>
+            <div class="box-title">Subconscious</div>
+            <div class="box-desc">
+                Voronoi selular gelap yang bereaksi terhadap kursor. Shepard Tone tanpa akhir. Teks perifer yang menghilang saat Anda mencoba membacanya. Pareidolia aktif.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENGHINDAR</span>
+                <span class="tag">PAREIDOLIA</span>
+            </div>
+        </a>
+
+        <a href="1777820128210.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #012</div>
+            <div class="box-title">Konsol</div>
+            <div class="box-desc">
+                Terminal palsu yang membajak input Anda. Suara napas di belakang. Teks yang Anda ketik perlahan berubah maknanya. Ketukan di pintu setelah pesan selesai.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENYUSUP</span>
+                <span class="tag">HIJACK</span>
+            </div>
+        </a>
+
+        <a href="1777820302483.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #013</div>
+            <div class="box-title">Parasit</div>
+            <div class="box-desc">
+                Kursor Anda dihapus dan diganti replika. Awalnya patuh, lalu melawan, lalu membelah diri menjadi 300 entitas yang menyerang posisi mouse asli Anda.
+            </div>
+            <div class="box-meta">
+                <span class="status">● BERTELUR</span>
+                <span class="tag">INFECTION</span>
+            </div>
+        </a>
+
+        <a href="1778155896923.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #014</div>
+            <div class="box-title">Silence // Telinga</div>
+            <div class="box-desc">
+            Mikrofon Anda diminta. Anda harus diam. Jika Anda bersuara, ambang batas akan turun dari 35 menjadi 5. Entitas merah akan menemukan Anda.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENDENGAR</span>
+                <span class="tag">MICROPHONE</span>
+            </div>
+        </a>
+
+        <a href="1778156089334.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #015</div>
+            <div class="box-title">Pecah</div>
+            <div class="box-desc">
+                Kanvas yang menggambar garis patah-patah agresif. Teks manik (word salad) yang berkedip. Flash invert acak. Tinnitus 8kHz yang tidak stabil.
+            </div>
+            <div class="box-meta">
+                <span class="status">● HANCUR</span>
+                <span class="tag">MANIC</span>
+            </div>
+        </a>
+
+        <a href="1778156185008.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #016</div>
+            <div class="box-title">Kosong</div>
+            <div class="box-desc">
+                Layar hitam absolut. Pesan subliminal muncul setengah detik. Detak jantung melambat hingga berhenti. Stroboskopik ekstrem. Wajah abstrak muncul dari kegelapan.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MATI</span>
+                <span class="tag">VOID</span>
+            </div>
+        </a>
+
+        <a href="1778156531182.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #017</div>
+            <div class="box-title">Diagnostik</div>
+            <div class="box-desc">
+                UI palsu yang berlubang saat kursor diam. WebGL daging berdenyut terlihat melalui lubang. Suara basah saat layar robek. Jangan diam terlalu lama.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MEMBUSUK</span>
+                <span class="tag">FLESH</span>
+            </div>
+        </a>
+
+        <a href="1778156662869.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #018</div>
+            <div class="box-title">Absolut</div>
+            <div class="box-desc">
+                Fraktal KIFS kaleidoskopik yang berputar tanpa bentuk. Teks abstrak muncul dan memudar. Suara angin gua yang perlahan menyapu frekuensi. Tidak ada arah.
+            </div>
+            <div class="box-meta">
+                <span class="status">● TANPA WUJUD</span>
+                <span class="tag">FRACTAL</span>
+            </div>
+        </a>
+
+        <a href="1778156839917.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #019</div>
+            <div class="box-title">Jurnal</div>
+            <div class="box-desc">
+                Area teks yang mengubah kata-kata Anda secara diam-diam. "Saya" menjadi "dia". "Bahagia" menjadi "diawasi". Detuning binaural perlahan memecah belah pikiran.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENULIS</span>
+                <span class="tag">GASLIGHTING</span>
+            </div>
+        </a>
+
+        <a href="1778156967571.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #020</div>
+            <div class="box-title">Koma</div>
+            <div class="box-desc">
+                Simulasi kelopak mata yang terpejam. Anda harus meronta dengan mouse untuk membuka mata. Entitas di kamar rumah sakit semakin besar. Flatline menunggu.
+            </div>
+            <div class="box-meta">
+                <span class="status">● TIDUR</span>
+                <span class="tag">COMA</span>
+            </div>
+        </a>
+
+        <a href="1778157063203.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #021</div>
+            <div class="box-title">Somatic</div>
+            <div class="box-desc">
+                Kalibrasi saraf palsu. Kursor mulai bernapas dan bergerak sendiri. Jika 100% tersinkron, kursor diserang dan layar memucat seperti kehilangan kesadaran.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENYERANG</span>
+                <span class="tag">NEURAL</span>
+            </div>
+        </a>
+
+        <a href="1778157131083.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #022</div>
+            <div class="box-title">0 0 0</div>
+            <div class="box-desc">
+                Permainan titik putih yang harus ditangkap. Setiap 3 klik, flash subliminal muncul 1 frame. Rorschach inkblat yang bergeser. Shepard Tone yang rusak.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENGHITUNG</span>
+                <span class="tag">OBSESSIVE</span>
+            </div>
+        </a>
+
+        <a href="1778157288879.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #023</div>
+            <div class="box-title">Nihil</div>
+            <div class="box-desc">
+                Detak jam yang rusak dan tidak beraturan. Ruang kosong yang membusuk melalui raymarching. Noise statis yang semakin mengaburkan penglihatan Anda.
+            </div>
+            <div class="box-meta">
+                <span class="status">● HAMPA</span>
+                <span class="tag">DECAY</span>
+            </div>
+        </a>
+
+        <a href="1778157373981.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #024</div>
+            <div class="box-title">Visceral</div>
+            <div class="box-desc">
+                Efek pixelated kotor dengan filter kontras ekstrem. Pola seperti sel darah dan jamur. Napas terdistorsi yang terdengar seperti rekaman rusak.
+            </div>
+            <div class="box-meta">
+                <span class="status">● BERNAFAS</span>
+                <span class="tag">INFESTATION</span>
+            </div>
+        </a>
+
+        <a href="1778157423104.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #025</div>
+            <div class="box-title">0 0 0 0</div>
+            <div class="box-desc">
+                Partikel saraf digital yang membusuk. Binaural beats 4.5Hz yang merusak. Layar bergeser seperti korupsi VRAM. Tidak ada jalan keluar.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENULAR</span>
+                <span class="tag">CORRUPTION</span>
+            </div>
+        </a>
+
+        <a href="1778157470440.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #026</div>
+            <div class="box-title">0 0 0 0 0</div>
+            <div class="box-desc">
+                Layar pemuatan palsu. Setelah 100%, jeda sunyi 1.5 detik lalu serangan jumpscare dengan stroboskopik. Wajah terdistorsi digambar melalui canvas.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MEMUAT</span>
+                <span class="tag">JUMPSCARE</span>
+            </div>
+        </a>
+
+        <a href="1778157517571.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #027</div>
+            <div class="box-title">Inang</div>
+            <div class="box-desc">
+                Kotak kecil yang meminta Anda tetap di sini. Kursor mulai lag, lalu berbalik melawan Anda, lalu menyerang dengan flash merah dan tulisan "KUTEMUKAN".
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENAHAN</span>
+                <span class="tag">POSSESSION</span>
+            </div>
+        </a>
+
+        <a href="1778157590080.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #028</div>
+            <div class="box-title">Perifer</div>
+            <div class="box-desc">
+                Infrasound 18.9Hz yang memicu panik. Ghost cursor yang bergerak di penglihatan perifer. Kilatan bayangan wajah secara sporadis. Jangan menoleh.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENGIKUTI</span>
+                <span class="tag">STALKER</span>
+            </div>
+        </a>
+
+        <a href="1778157634704.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #029</div>
+            <div class="box-title">Nekrosis</div>
+            <div class="box-desc">
+                Setiap gerakan mouse meninggalkan jejak yang membusuk. Jika terlalu banyak bergerak, jumpscare langsung terpicu. Suara mesin pemotong di kejauhan.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MEMBUSUK</span>
+                <span class="tag">DEATH</span>
+            </div>
+        </a>
+
+        <a href="1778157695665.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #030</div>
+            <div class="box-title">Target</div>
+            <div class="box-desc">
+                Terminal log palsu yang menganalisis Anda. Heart rate dan pupil dilation terdeteksi. Kursor pengamat mengikuti Anda dengan jeda. Anda adalah targetnya.
+            </div>
+            <div class="box-meta">
+                <span class="status">● TERKUNCI</span>
+                <span class="tag">TARGETED</span>
+            </div>
+        </a>
+
+        <a href="1778157784487.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #031</div>
+            <div class="box-title">Entropi</div>
+            <div class="box-desc">
+                Pixel decay melalui manipulasi ImageData. Shepard Tone endless fall. Simulasi crash sistem dengan pesan fatal error yang mengetik sendiri.
+            </div>
+            <div class="box-meta">
+                <span class="status">● RUNTUH</span>
+                <span class="tag">ENTROPY</span>
+            </div>
+        </a>
+
+        <a href="1778157843302.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #032</div>
+            <div class="box-title">Sync</div>
+            <div class="box-desc">
+                Titik merah bergerak dalam pola Lissajous lambat. Infrasound aritmia yang salah. Setelah 30 detik, semua mati dan layar hitam menampilkan pesan terakhir.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENGHUBUNGKAN</span>
+                <span class="tag">VOID SYNC</span>
+            </div>
+        </a>
+
+        <a href="1778157917326.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #033</div>
+            <div class="box-title">Parasit [v2]</div>
+            <div class="box-desc">
+                Resistensi kursor yang semakin kuat. Parasit merayap dan membelah diri. Suara gesekan logam frekuensi tinggi. Subliminal glitch setiap 100 frame.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MERAYAP</span>
+                <span class="tag">PARASITE</span>
+            </div>
+        </a>
+
+        <a href="1778157974237.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #034</div>
+            <div class="box-title">X X X</div>
+            <div class="box-desc">
+                Shepard Tone generator yang tak berujung. Kursor otonom yang merayap saat diam. Subliminal "LIHAT KE BELAKANG" muncul setiap 500 frame.
+            </div>
+            <div class="box-meta">
+                <span class="status">● JATUH</span>
+                <span class="tag">ENDLESS</span>
+            </div>
+        </a>
+
+        <a href="1778158045541.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #035</div>
+            <div class="box-title">System Check</div>
+            <div class="box-desc">
+                Diagnostik palsu yang menganalisis Anda. Membuka kamera. Menghitung mundur 3-2-1. Breach visual dan auditori ekstrem dengan clipping audio.
+            </div>
+            <div class="box-meta">
+                <span class="status">● MENGANALISIS</span>
+                <span class="tag">BREACH</span>
+            </div>
+        </a>
+
+        <a href="1778158129108.html" class="evidence-box">
+            <div class="box-number">EVIDENCE #036</div>
+            <div class="box-title">Visceral [v2]</div>
+            <div class="box-desc">
+                Kursor putih yang bergetar dan meronta menjauh dari kontrol. Flash spasmodik setiap 200 frame. Tinnitus 12kHz panjang di akhir. Kau merasakannya?
+            </div>
+            <div class="box-meta">
+                <span class="status">● MERONTA</span>
+                <span class="tag">SPASM</span>
+            </div>
+        </a>
+
+    </main>
+
+    <footer class="footer">
+        <p>DEWAN PENELITIAN PSIKOLOGI EKSTREM // ARSIP SUBJEK-09</p>
+        <p style="margin-top: 10px; color: var(--dark-blood);">
+            "Pikiran adalah tempat paling berbahaya untuk bersembunyi."
+        </p>
+        <p style="margin-top: 20px; font-size: 0.6rem; color: #222;">
+            Semua rekaman telah diklasifikasikan. Penyebarluasan akan dikenakan sanksi berat.<br>
+            Jika Anda membaca ini, Anda sudah terinfeksi.
+        </p>
+    </footer>
+
+    <script>
+        // Efek darah menetes
+        function createDrip() {
+            const drip = document.createElement('div');
+            drip.className = 'drip';
+            drip.style.left = Math.random() * 100 + '%';
+            drip.style.animationDuration = (Math.random() * 3 + 2) + 's';
+            drip.style.height = (Math.random() * 200 + 100) + 'px';
+            document.getElementById('bloodLayer').appendChild(drip);
+            
+            setTimeout(() => drip.remove(), 5000);
+        }
+        setInterval(createDrip, 800);
+
+        // Kursor follower
+        const cursor = document.getElementById('cursor');
+        let mouseX = 0, mouseY = 0;
+        let cursorX = 0, cursorY = 0;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        function animateCursor() {
+            cursorX += (mouseX - cursorX) * 0.1;
+            cursorY += (mouseY - cursorY) * 0.1;
+            cursor.style.left = cursorX - 10 + 'px';
+            cursor.style.top = cursorY - 10 + 'px';
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor();
+
+        // Subliminal flash
+        const subliminal = document.getElementById('subliminal');
+        const messages = [
+            "MEREKA MENUNGGUMU", "JANGAN BERGERAK", "LIHAT KE BELAKANG", 
+            "KAU TIDAK SENDIRIAN", "BERHENTI MEMBACA", "TUTUP MATA"
+        ];
+
+        setInterval(() => {
+            if (Math.random() > 0.7) {
+                subliminal.innerText = messages[Math.floor(Math.random() * messages.length)];
+                subliminal.style.opacity = '0.15';
+                setTimeout(() => {
+                    subliminal.style.opacity = '0';
+                }, 80); // Flash sangat singkat
+            }
+        }, 4000);
+
+        // Efek glitch acak pada judul
+        const title = document.querySelector('.title');
+        setInterval(() => {
+            if (Math.random() > 0.95) {
+                title.style.transform = `translate(${(Math.random()-0.5)*4}px, ${(Math.random()-0.5)*2}px)`;
+                setTimeout(() => {
+                    title.style.transform = 'translate(0)';
+                }, 100);
+            }
+        }, 2000);
+
+        // Audio ambient (optional - only on interaction)
+        let audioCtx;
+        document.addEventListener('click', () => {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Low rumble
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 40;
+                gain.gain.value = 0.03;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+
+                // Random click sounds
+                setInterval(() => {
+                    if (Math.random() > 0.9) {
+                        const click = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        click.type = 'square';
+                        click.frequency.setValueAtTime(800, audioCtx.currentTime);
+                        g.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                        click.connect(g);
+                        g.connect(audioCtx.destination);
+                        click.start();
+                        click.stop(audioCtx.currentTime + 0.05);
+                    }
+                }, 3000);
+            }
+        }, { once: true });
+
+        // Parallax effect on boxes
+        document.addEventListener('mousemove', (e) => {
+            const boxes = document.querySelectorAll('.evidence-box');
+            const x = (e.clientX / window.innerWidth - 0.5) * 10;
+            const y = (e.clientY / window.innerHeight - 0.5) * 10;
+            
+            boxes.forEach((box, i) => {
+                const speed = (i % 3 + 1) * 0.5;
+                box.style.transform = `translate(${x * speed}px, ${y * speed}px)`;
+            });
+        });
+    </script>
+</body>
+</html>

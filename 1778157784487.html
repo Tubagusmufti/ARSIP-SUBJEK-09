@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E N T R O P I</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+        }
+
+        canvas {
+            display: block; width: 100%; height: 100%;
+            filter: contrast(200%) brightness(50%) grayscale(100%);
+        }
+
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1000; background: #000; color: #080000;
+            display: flex; justify-content: center; align-items: center;
+            font-family: 'Times New Roman', serif; letter-spacing: 20px;
+            cursor: pointer; transition: opacity 2s;
+        }
+
+        #crash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 2000; display: none;
+            color: #111; font-family: monospace; padding: 20px;
+            font-size: 10px; line-height: 1.2;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">LUPAKAN ARAH</div>
+    <div id="crash-screen"></div>
+    <canvas id="abyss"></canvas>
+
+    <script>
+        const overlay = document.getElementById('overlay');
+        const canvas = document.getElementById('abyss');
+        const crash = document.getElementById('crash-screen');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth / 4; // Resolusi rendah untuk tekstur kasar
+        canvas.height = window.innerHeight / 4;
+
+        let audioCtx;
+        let isRunning = false;
+        let frame = 0;
+
+        overlay.addEventListener('click', () => {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                initAudio();
+                isRunning = true;
+                loop();
+            }, 2000);
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Shepard Tone (Ilusi jatuh tak berujung)
+            const createTone = (freq) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.value = freq;
+                gain.gain.value = 0.05;
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start();
+                
+                const sweep = () => {
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(freq / 2, audioCtx.currentTime + 10);
+                    setTimeout(sweep, 10000);
+                };
+                sweep();
+            };
+
+            [200, 400, 800, 1600].forEach(createTone);
+        }
+
+        function playDistortion() {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(Math.random() * 50, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function loop() {
+            if(!isRunning) return;
+            frame++;
+
+            // Visual: Feedback Loop (Meluruhan Piksel)
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            for (let i = 0; i < data.length; i += 4) {
+                // Manipulasi data piksel secara acak (pembusukan)
+                if (Math.random() > 0.98) {
+                    data[i] = data[i+4] || 0; // Mengambil warna piksel sebelah
+                    data[i+1] = 255; // Memberikan warna "terbakar"
+                }
+                data[i] *= 0.95; // Meredupkan perlahan
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+
+            // Munculkan distorsi suara secara sporadis
+            if (Math.random() > 0.99) playDistortion();
+
+            // Simulasi Crash setelah jangka waktu tertentu
+            if (frame > 1000) {
+                triggerCrash();
+                return;
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        function triggerCrash() {
+            isRunning = false;
+            crash.style.display = 'block';
+            let i = 0;
+            const text = "FATAL_ERROR: MEMORY_CORRUPTION_AT_0x" + Math.random().toString(16).slice(2, 10) + "...";
+            
+            const typing = setInterval(() => {
+                crash.innerHTML += text + "<br>";
+                i++;
+                if (i > 100) {
+                    clearInterval(typing);
+                    setTimeout(() => {
+                        crash.style.color = "#f00";
+                        crash.innerHTML = "<div style='font-size: 5vw; display: flex; justify-content: center; align-items: center; height: 100%;'>SUDAH SELESAI?</div>";
+                        playFinalScreech();
+                    }, 3000);
+                }
+            }, 20);
+        }
+
+        function playFinalScreech() {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(5000, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+    </script>
+</body>
+</html>

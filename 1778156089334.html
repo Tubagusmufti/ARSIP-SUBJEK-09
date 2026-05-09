@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P E C A H</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #050505; color: #333; z-index: 1000; cursor: pointer;
+            letter-spacing: 5px; text-transform: uppercase; font-family: monospace;
+        }
+
+        canvas {
+            position: absolute; top: 0; left: 0; z-index: 10;
+            filter: contrast(200%) brightness(80%) grayscale(20%);
+        }
+
+        #text-layer {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 20; overflow: hidden;
+            mix-blend-mode: difference;
+        }
+
+        .manic-text {
+            position: absolute; color: #fff; font-weight: bold;
+            opacity: 0.8; transform-origin: center;
+            text-shadow: 2px 2px 0px #f00, -2px -2px 0px #00f;
+        }
+
+        #vignette {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at center, transparent 30%, #000 90%);
+            pointer-events: none; z-index: 50;
+        }
+
+        /* Filter untuk membuat keseluruhan layar terlihat "kotor" */
+        .grime {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 60; opacity: 0.15;
+            background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noise"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noise)"/%3E%3C/svg%3E');
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">E K S E K U S I</div>
+    
+    <canvas id="chaosCanvas"></canvas>
+    <div id="text-layer"></div>
+    <div id="vignette"></div>
+    <div class="grime"></div>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const canvas = document.getElementById('chaosCanvas');
+        const ctx = canvas.getContext('2d');
+        const textLayer = document.getElementById('text-layer');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let audioCtx;
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let nodes = [];
+        
+        const phrases = [
+            "TIDAK BERHENTI", "BERISIK", "MATA", "MEREKA MELIHAT", "KOSONG", 
+            "GIGI", "TERLALU TERANG", "PECAH", "DI MANA", "SALAH", "SUARA ITU", "MENGGARUK"
+        ];
+
+        initScreen.addEventListener('click', () => {
+            initScreen.style.display = 'none';
+            initAudio();
+            startChaos();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            // Menambah titik baru setiap kali mouse bergerak secara agresif
+            if(Math.random() > 0.5) {
+                nodes.push({x: mouseX, y: mouseY, vx: (Math.random()-0.5)*20, vy: (Math.random()-0.5)*20});
+            }
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Tinnitus Screech (Dengingan tidak stabil)
+            const osc1 = audioCtx.createOscillator();
+            const lfo = audioCtx.createOscillator();
+            const osc1Gain = audioCtx.createGain();
+
+            osc1.type = 'sawtooth';
+            osc1.frequency.value = 8000;
+            
+            lfo.type = 'square';
+            lfo.frequency.value = 15; // Kecepatan getaran
+            
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 1000; // Rentang modulasi
+
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc1.frequency);
+            
+            osc1Gain.gain.value = 0.05;
+
+            osc1.connect(osc1Gain);
+            osc1Gain.connect(audioCtx.destination);
+            
+            osc1.start();
+            lfo.start();
+
+            // Background Rumble (Gemetar)
+            const rumble = audioCtx.createOscillator();
+            const rumbleGain = audioCtx.createGain();
+            rumble.type = 'triangle';
+            rumble.frequency.value = 30;
+            rumbleGain.gain.value = 0.5;
+            rumble.connect(rumbleGain);
+            rumbleGain.connect(audioCtx.destination);
+            rumble.start();
+        }
+
+        function playScrapeSound() {
+            if(!audioCtx || Math.random() > 0.4) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1000 + Math.random() * 3000, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        // Generator Teks Acak (Word Salad)
+        function generateManicText() {
+            setInterval(() => {
+                if (Math.random() > 0.2) {
+                    const el = document.createElement('div');
+                    el.className = 'manic-text';
+                    el.innerText = phrases[Math.floor(Math.random() * phrases.length)];
+                    
+                    // Posisi, ukuran, dan rotasi acak
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * window.innerHeight;
+                    const size = Math.random() * 80 + 10;
+                    const rot = (Math.random() - 0.5) * 90;
+                    
+                    el.style.left = `${x}px`;
+                    el.style.top = `${y}px`;
+                    el.style.fontSize = `${size}px`;
+                    el.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
+                    
+                    textLayer.appendChild(el);
+
+                    // Hapus elemen setelah beberapa saat secara acak untuk efek flashing
+                    setTimeout(() => {
+                        if (textLayer.contains(el)) {
+                            textLayer.removeChild(el);
+                        }
+                    }, Math.random() * 500 + 50);
+
+                    playScrapeSound();
+                }
+
+                // Efek Flash Invert
+                if (Math.random() > 0.95) {
+                    document.body.style.filter = 'invert(100%)';
+                    setTimeout(() => document.body.style.filter = 'none', 50);
+                }
+            }, 100);
+        }
+
+        // Algoritma Kanvas (Gambar garis patah-patah yang agresif)
+        function startChaos() {
+            generateManicText();
+            ctx.fillStyle = "rgba(0, 0, 0, 0.1)"; // Trails effect
+            
+            function render() {
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.lineWidth = 1;
+                
+                // Jika terlalu banyak node, hapus yang lama
+                if (nodes.length > 150) nodes.splice(0, 10);
+
+                ctx.beginPath();
+                for (let i = 0; i < nodes.length; i++) {
+                    let n = nodes[i];
+                    
+                    // Node bergerak liar ke arah kursor
+                    n.vx += (mouseX - n.x) * 0.005 + (Math.random() - 0.5) * 5;
+                    n.vy += (mouseY - n.y) * 0.005 + (Math.random() - 0.5) * 5;
+                    
+                    // Gesekan tinggi
+                    n.vx *= 0.85;
+                    n.vy *= 0.85;
+                    
+                    n.x += n.vx;
+                    n.y += n.vy;
+
+                    // Warnai dengan merah/hitam acak
+                    ctx.strokeStyle = Math.random() > 0.8 ? '#ff0000' : '#444444';
+                    
+                    ctx.lineTo(n.x, n.y);
+                    
+                    // Percikan sporadis (Splatters)
+                    if (Math.random() > 0.9) {
+                        ctx.fillStyle = '#220000';
+                        ctx.beginPath();
+                        ctx.arc(n.x + (Math.random()-0.5)*50, n.y + (Math.random()-0.5)*50, Math.random()*5, 0, Math.PI*2);
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.moveTo(n.x, n.y); // Kembalikan path
+                    }
+                }
+                ctx.stroke();
+
+                // Tarik garis tajam langsung ke kursor
+                ctx.beginPath();
+                ctx.moveTo(mouseX, mouseY);
+                ctx.lineTo(mouseX + (Math.random()-0.5)*500, mouseY + (Math.random()-0.5)*500);
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>

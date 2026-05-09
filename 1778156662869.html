@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A B S O L U T</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #020202; color: #333; z-index: 1000; cursor: pointer;
+            letter-spacing: 10px; font-weight: bold;
+            transition: color 2s;
+        }
+
+        #init-screen:hover { color: #fff; }
+
+        canvas {
+            display: block; width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; z-index: 1;
+        }
+
+        /* Teks Anomali Dimensi */
+        #abstract-text-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10; overflow: hidden;
+            mix-blend-mode: exclusion;
+        }
+
+        .abstract-word {
+            position: absolute; color: #fff; font-size: 1.5rem;
+            letter-spacing: 20px; opacity: 0; filter: blur(2px);
+            transform: scale(0.8);
+            transition: opacity 2s, filter 2s, transform 5s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">LEPASKAN BENTUK</div>
+    <canvas id="void-canvas"></canvas>
+    <div id="abstract-text-container"></div>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const canvas = document.getElementById('void-canvas');
+        const gl = canvas.getContext('webgl');
+        const textContainer = document.getElementById('abstract-text-container');
+
+        let audioCtx;
+        let targetMouse = { x: 0, y: 0 };
+        let currentMouse = { x: 0, y: 0 };
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const words = [
+            "TIDAK ADA ARAH", "BERLIPAT GANDA", "KOSONG", "BENTUK MATI", 
+            "BERPUTAR", "TANPA AKHIR", "BUKAN RUANG", "KITA HILANG", "SUDUT PATAH"
+        ];
+
+        initScreen.addEventListener('click', () => {
+            initScreen.style.opacity = '0';
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                initAudio();
+                initShader();
+                startAbstractWords();
+            }, 2000);
+        });
+
+        // Pelacakan mouse untuk mendistorsi fraktal secara asinkron
+        document.addEventListener('mousemove', (e) => {
+            targetMouse.x = (e.clientX / window.innerWidth) * 2.0 - 1.0;
+            targetMouse.y = -(e.clientY / window.innerHeight) * 2.0 + 1.0;
+        });
+
+        // Audio: Cosmic Void / Dark Ambient
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // White Noise Generator
+            const bufferSize = audioCtx.sampleRate * 2;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+            const noiseSrc = audioCtx.createBufferSource();
+            noiseSrc.buffer = noiseBuffer;
+            noiseSrc.loop = true;
+
+            // Bandpass filter yang perlahan menyapu frekuensi (mensimulasikan nafas raksasa)
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.Q.value = 5.0; // Resonansi tinggi untuk suara seperti angin gua
+            
+            const lfo = audioCtx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.05; // 1 siklus per 20 detik (Sangat lambat)
+            
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 800; // Rentang frekuensi yang disapu
+
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+            filter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.4;
+
+            noiseSrc.connect(filter);
+            filter.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
+
+            noiseSrc.start();
+            lfo.start();
+        }
+
+        // Teks subliminal yang muncul dan memudar sangat lambat
+        function startAbstractWords() {
+            setInterval(() => {
+                const word = document.createElement('div');
+                word.className = 'abstract-word';
+                word.innerText = words[Math.floor(Math.random() * words.length)];
+                
+                word.style.left = Math.random() * 80 + 10 + '%';
+                word.style.top = Math.random() * 80 + 10 + '%';
+                
+                // Rotasi acak, terkadang vertikal atau terbalik
+                const rot = (Math.random() > 0.5 ? 90 : 0) + (Math.random() > 0.5 ? 180 : 0);
+                word.style.transform = `translate(-50%, -50%) rotate(${rot}deg) scale(0.8)`;
+                
+                textContainer.appendChild(word);
+
+                // Fade In
+                setTimeout(() => {
+                    word.style.opacity = '0.3';
+                    word.style.filter = 'blur(0px)';
+                    word.style.transform = `translate(-50%, -50%) rotate(${rot}deg) scale(1.1)`;
+                }, 100);
+
+                // Fade Out & Remove
+                setTimeout(() => {
+                    word.style.opacity = '0';
+                    word.style.filter = 'blur(10px)';
+                    setTimeout(() => word.remove(), 2000);
+                }, 4000 + Math.random() * 3000);
+
+            }, 3000);
+        }
+
+        // WebGL: Kaleidoscopic Iterated Function System (KIFS) Fractal
+        function initShader() {
+            const vsSource = `
+                attribute vec2 position;
+                void main() { gl_Position = vec4(position, 0.0, 1.0); }
+            `;
+
+            const fsSource = `
+                precision highp float;
+                uniform vec2 u_resolution;
+                uniform float u_time;
+                uniform vec2 u_mouse;
+
+                // Matriks Rotasi 2D
+                mat2 rot(float a) {
+                    float s = sin(a), c = cos(a);
+                    return mat2(c, -s, s, c);
+                }
+
+                // Fungsi Jarak Fraktal (KIFS)
+                float map(vec3 p) {
+                    // Kamera terus maju ke dalam jurang
+                    p.z -= u_time * 0.4;
+                    
+                    // Rotasi ruang berdasarkan posisi mouse (distorsi ruang lambat)
+                    p.xy *= rot(u_mouse.x * 0.5);
+                    p.yz *= rot(u_mouse.y * 0.5);
+
+                    float scale = 1.0;
+                    
+                    // Iterasi pelipatan ruang geometris
+                    for(int i = 0; i < 5; i++) {
+                        p = abs(p) - vec3(1.2, 0.8, 1.5); // Melipat ruang
+                        p.xy *= rot(u_time * 0.1 + float(i) * 0.5);
+                        p.xz *= rot(u_time * 0.05);
+                        
+                        // Ekspansi skala untuk membuat detail fraktal
+                        p *= 1.5;
+                        scale *= 1.5;
+                    }
+                    
+                    // Jarak ke geometri abstrak
+                    return (length(p) - 1.0) / scale;
+                }
+
+                void main() {
+                    vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+                    
+                    vec3 ro = vec3(0.0, 0.0, -3.0); // Asal sinar (Kamera)
+                    vec3 rd = normalize(vec3(uv, 1.0)); // Arah sinar
+                    
+                    float t = 0.0;
+                    float d = 0.0;
+                    
+                    // Raymarching Loop
+                    for(int i = 0; i < 80; i++) {
+                        vec3 p = ro + rd * t;
+                        d = map(p);
+                        if(d < 0.001 || t > 20.0) break;
+                        t += d;
+                    }
+                    
+                    // Pewarnaan Abstrak (Monokromatik + Chromatic Aberration)
+                    vec3 color = vec3(0.0);
+                    
+                    if(t < 20.0) {
+                        float depth = 1.0 - (t / 20.0);
+                        
+                        // Cahaya buatan (Ambient Occlusion palsu berdasarkan jumlah langkah)
+                        float light = depth * depth;
+                        
+                        // Warna dasar monokrom, keabu-abuan dingin
+                        color = vec3(0.8, 0.85, 0.9) * light;
+                        
+                        // Distorsi warna pada kedalaman (Aberasi Kromatik Halus)
+                        color.r *= sin(t * 5.0 - u_time) * 0.5 + 0.5;
+                        color.b *= cos(t * 3.0 + u_time) * 0.5 + 0.5;
+                    }
+                    
+                    // Vignette ekstrem untuk efek mengambang dalam kehampaan
+                    float vignette = length(uv);
+                    color *= smoothstep(1.2, 0.1, vignette);
+
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `;
+
+            const program = gl.createProgram();
+            
+            const vs = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vs, vsSource);
+            gl.compileShader(vs);
+            
+            const fs = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fs, fsSource);
+            gl.compileShader(fs);
+            
+            gl.attachShader(program, vs);
+            gl.attachShader(program, fs);
+            gl.linkProgram(program);
+            gl.useProgram(program);
+
+            const posBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+            
+            const posLoc = gl.getAttribLocation(program, "position");
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const resLoc = gl.getUniformLocation(program, "u_resolution");
+            const timeLoc = gl.getUniformLocation(program, "u_time");
+            const mouseLoc = gl.getUniformLocation(program, "u_mouse");
+
+            function render(time) {
+                // Interpolasi pergerakan mouse agar terasa "berat"
+                currentMouse.x += (targetMouse.x - currentMouse.x) * 0.02;
+                currentMouse.y += (targetMouse.y - currentMouse.y) * 0.02;
+
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.uniform2f(resLoc, canvas.width, canvas.height);
+                gl.uniform1f(timeLoc, time * 0.0005);
+                gl.uniform2f(mouseLoc, currentMouse.x, currentMouse.y);
+                
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                requestAnimationFrame(render);
+            }
+            requestAnimationFrame(render);
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>

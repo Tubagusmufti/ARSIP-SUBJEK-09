@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S Y S T E M _ C H E C K</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden;
+            color: #1a1a1a; font-family: 'Courier New', monospace;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        #terminal {
+            width: 80%; font-size: 12px; line-height: 1.5;
+            transition: color 0.5s;
+        }
+
+        .progress-bar {
+            width: 300px; height: 1px; background: #050505;
+            margin-top: 10px; position: relative;
+        }
+
+        #fill {
+            width: 0%; height: 100%; background: #111;
+        }
+
+        /* Layer Serangan (Jumpscare) */
+        #scare-layer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 9999; display: none;
+            justify-content: center; align-items: center;
+        }
+
+        #glitch-canvas {
+            width: 100%; height: 100%; filter: contrast(1000%) brightness(200%);
+        }
+
+        #warning {
+            position: absolute; bottom: 20px; color: #050505; font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="terminal">
+        <div id="logs">MENGINISIALISASI SCAN SISTEM...<br></div>
+        <div class="progress-bar"><div id="fill"></div></div>
+    </div>
+
+    <div id="warning">KLIK DI MANA SAJA UNTUK MEMULAI DIAGNOSTIK</div>
+
+    <div id="scare-layer">
+        <canvas id="glitch-canvas"></canvas>
+    </div>
+
+    <script>
+        const logs = document.getElementById('logs');
+        const fill = document.getElementById('fill');
+        const scareLayer = document.getElementById('scare-layer');
+        const canvas = document.getElementById('glitch-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let audioCtx;
+        let isStarted = false;
+
+        const messages = [
+            "Memeriksa sektor boot...",
+            "Menganalisis integritas file...",
+            "Ditemukan 14.202 anomali...",
+            "Mencoba memperbaiki...",
+            "Gagal. Mencoba akses kernel...",
+            "Akses ditolak oleh pengguna asing.",
+            "Melacak sumber interupsi...",
+            "Sumber ditemukan: INPUT_USER_01",
+            "Membuka kamera untuk identifikasi...",
+            "Menganalisis wajah target...",
+            "Target dikonfirmasi. Mendekatlah ke layar.",
+            "Sinkronisasi saraf dalam 3... 2... 1..."
+        ];
+
+        window.addEventListener('click', () => {
+            if (isStarted) return;
+            isStarted = true;
+            document.getElementById('warning').style.display = 'none';
+            initAudio();
+            runDiagnostics();
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playBeep() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function triggerScreech() {
+            // Audio Agresi: Clipping White Noise + Square Wave
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(4.0, audioCtx.currentTime); // Volume Boost
+            masterGain.connect(audioCtx.destination);
+
+            const osc = audioCtx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(4000, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.4);
+            
+            const noise = audioCtx.createBufferSource();
+            const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+            noise.buffer = buffer;
+
+            osc.connect(masterGain);
+            noise.connect(masterGain);
+            
+            osc.start(); noise.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+            noise.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function runDiagnostics() {
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i < messages.length) {
+                    logs.innerHTML += `[${new Date().toLocaleTimeString()}] ${messages[i]}<br>`;
+                    fill.style.width = ((i + 1) / messages.length) * 100 + "%";
+                    playBeep();
+                    i++;
+                } else {
+                    clearInterval(interval);
+                    setTimeout(executeBreach, 2000); // Jeda sunyi yang menipu
+                }
+            }, 1500);
+        }
+
+        function executeBreach() {
+            scareLayer.style.display = 'flex';
+            triggerScreech();
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            function glitchAnimation() {
+                // Visual Agresi: Kilatan wajah abstrak dan noise merah
+                ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#f00';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#000';
+                // Mata kiri terdistorsi
+                ctx.beginPath();
+                ctx.arc(canvas.width * 0.3 + Math.random() * 50, canvas.height * 0.4, 100 + Math.random() * 100, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Mata kanan terdistorsi
+                ctx.beginPath();
+                ctx.arc(canvas.width * 0.7 + Math.random() * 50, canvas.height * 0.4, 100 + Math.random() * 100, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Mulut robek
+                ctx.fillRect(canvas.width * 0.2, canvas.height * 0.7, canvas.width * 0.6, 20 + Math.random() * 200);
+
+                if (audioCtx.currentTime < (audioCtx.currentTime + 0.5)) {
+                    requestAnimationFrame(glitchAnimation);
+                }
+            }
+            glitchAnimation();
+
+            setTimeout(() => {
+                document.body.innerHTML = "";
+                document.body.style.backgroundColor = "#000";
+                // Mengunci layar pada kegelapan
+            }, 500);
+        }
+    </script>
+</body>
+</html>

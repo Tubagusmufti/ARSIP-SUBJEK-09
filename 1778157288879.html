@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N I H I L</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+        }
+        canvas { display: block; width: 100%; height: 100%; filter: contrast(150%) brightness(0.7); }
+        
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100; pointer-events: none;
+            background: radial-gradient(circle at center, transparent 0%, #000 100%);
+            opacity: 0.8;
+        }
+
+        #interaction-trigger {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1000; background: #000; color: #111;
+            display: flex; justify-content: center; align-items: center;
+            font-family: serif; letter-spacing: 20px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="interaction-trigger">LUPAKAN</div>
+    <div id="overlay"></div>
+    <canvas id="gl"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gl');
+        const gl = canvas.getContext('webgl');
+        const trigger = document.getElementById('interaction-trigger');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let audioCtx;
+        
+        trigger.addEventListener('click', () => {
+            trigger.style.display = 'none';
+            initAudio();
+            initVisuals();
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Suara detak jam yang rusak (Asimetris)
+            function tick() {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                
+                // Waktu detak yang tidak konsisten untuk memicu kecemasan
+                setTimeout(tick, 800 + Math.random() * 600);
+            }
+            tick();
+
+            // Background Low Hum (40Hz - Resonance of fear)
+            const hum = audioCtx.createOscillator();
+            const humGain = audioCtx.createGain();
+            hum.frequency.value = 40;
+            humGain.gain.value = 0.05;
+            hum.connect(humGain); humGain.connect(audioCtx.destination);
+            hum.start();
+        }
+
+        function initVisuals() {
+            const vs = `attribute vec2 p; void main(){gl_Position=vec4(p,0,1);}`;
+            const fs = `
+                precision highp float;
+                uniform float t;
+                uniform vec2 r;
+                uniform vec2 m;
+
+                float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+
+                void main() {
+                    vec2 uv = (gl_FragCoord.xy - 0.5 * r) / r.y;
+                    vec3 col = vec3(0.0);
+                    
+                    // Raymarching ruang kosong yang membusuk
+                    vec3 ro = vec3(0, 0, -3.0);
+                    vec3 rd = normalize(vec3(uv, 1.0));
+                    
+                    float d = 0.0;
+                    for(int i=0; i<64; i++) {
+                        vec3 p = ro + rd * d;
+                        // Geometri yang tidak stabil, terus berubah bentuk secara abstrak
+                        float s = length(p) - (1.0 + 0.2 * sin(t + length(p * 5.0)));
+                        if(s < 0.001) break;
+                        d += s;
+                        if(d > 10.0) break;
+                    }
+
+                    if(d < 10.0) {
+                        float noise = hash(uv + t);
+                        col = vec3(noise * 0.15); // Hanya statis abu-abu di dalam objek
+                    }
+
+                    // Efek "Mata Lelah" - semakin lama melihat, semakin banyak noise
+                    col += hash(uv * t) * 0.05;
+
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `;
+
+            const prog = gl.createProgram();
+            const s = (type, src) => {
+                const sh = gl.createShader(type);
+                gl.shaderSource(sh, src); gl.compileShader(sh); return sh;
+            };
+            gl.attachShader(prog, s(gl.VERTEX_SHADER, vs));
+            gl.attachShader(prog, s(gl.FRAGMENT_SHADER, fs));
+            gl.linkProgram(prog); gl.useProgram(prog);
+
+            const buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+            const pLoc = gl.getAttribLocation(prog, "p");
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const tLoc = gl.getUniformLocation(prog, "t");
+            const rLoc = gl.getUniformLocation(prog, "r");
+
+            function draw(now) {
+                gl.uniform1f(tLoc, now * 0.001);
+                gl.uniform2f(rLoc, canvas.width, canvas.height);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                requestAnimationFrame(draw);
+            }
+            requestAnimationFrame(draw);
+        }
+    </script>
+</body>
+</html>

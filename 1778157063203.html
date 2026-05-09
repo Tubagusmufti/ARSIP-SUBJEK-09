@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S O M A T I C</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #050000; overflow: hidden; cursor: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #000; color: #444; z-index: 1000; cursor: pointer;
+            letter-spacing: 5px; text-align: center;
+        }
+
+        /* Target Kalibrasi */
+        #target-circle {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 60px; height: 60px; border: 2px solid #300; border-radius: 50%;
+            z-index: 5; transition: all 0.5s;
+        }
+
+        /* Kursor Buatan (Perpanjangan Saraf) */
+        #fake-cursor {
+            position: absolute; width: 10px; height: 10px;
+            background: #fff; border-radius: 50%;
+            box-shadow: 0 0 15px #fff; z-index: 100;
+            pointer-events: none;
+        }
+
+        #status-display {
+            position: absolute; bottom: 20px; left: 20px;
+            color: #300; font-size: 0.8rem; pointer-events: none;
+        }
+
+        /* Overlay Kerusakan Saraf */
+        #glitch-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M0,50 Q25,0 50,50 T100,50" stroke="red" fill="none" opacity="0.3"/></svg>');
+            opacity: 0; pointer-events: none; z-index: 50;
+        }
+
+        /* Filter Pembuluh Darah */
+        .veins {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, transparent 30%, #100 100%);
+            z-index: 2; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">KALIBRASI NEURAL<br><br>TEMPATKAN KURSOR DI TENGAH LINGKARAN</div>
+    
+    <div id="target-circle"></div>
+    <div id="fake-cursor"></div>
+    <div id="status-display">SIGNAL: SEARCHING...</div>
+    <div id="glitch-overlay"></div>
+    <div class="veins"></div>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const fakeCursor = document.getElementById('fake-cursor');
+        const targetCircle = document.getElementById('target-circle');
+        const statusDisplay = document.getElementById('status-display');
+        const glitchOverlay = document.getElementById('glitch-overlay');
+
+        let audioCtx;
+        let mouse = { x: 0, y: 0 };
+        let fakeMouse = { x: window.innerWidth/2, y: window.innerHeight/2 };
+        let isCalibrated = false;
+        let calibrationLevel = 0;
+        let time = 0;
+
+        initScreen.addEventListener('click', () => {
+            initScreen.style.opacity = '0';
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                initAudio();
+                requestAnimationFrame(loop);
+            }, 1000);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Suara aliran darah (Brownian Noise)
+            const bufferSize = audioCtx.sampleRate * 2;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                let white = Math.random() * 2 - 1;
+                output[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = output[i];
+                output[i] *= 2.5;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.loop = true;
+            
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 150;
+
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.2;
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start();
+        }
+
+        function playHeartbeat(vol) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(60, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        let nextBeat = 0;
+        function loop(t) {
+            time = t;
+            
+            // Jarak antara kursor asli dan target
+            const dx = mouse.x - (window.innerWidth / 2);
+            const dy = mouse.y - (window.innerHeight / 2);
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist < 30) {
+                calibrationLevel += 0.2;
+                if (calibrationLevel > 100) calibrationLevel = 100;
+                isCalibrated = true;
+                targetCircle.style.borderColor = `rgba(255, 0, 0, ${calibrationLevel/100})`;
+                statusDisplay.innerText = `SYNCING: ${Math.floor(calibrationLevel)}%`;
+                statusDisplay.style.color = "#800";
+            } else {
+                calibrationLevel *= 0.99;
+                isCalibrated = false;
+                statusDisplay.innerText = "SIGNAL: RECALIBRATING...";
+                statusDisplay.style.color = "#300";
+            }
+
+            // Integrasi Saraf: Kursor mulai bernapas dan bergerak sendiri saat sinkron
+            const driftX = Math.sin(time / 500) * (calibrationLevel / 10);
+            const driftY = Math.cos(time / 400) * (calibrationLevel / 10);
+            
+            fakeMouse.x += (mouse.x - fakeMouse.x + driftX) * 0.15;
+            fakeMouse.y += (mouse.y - fakeMouse.y + driftY) * 0.15;
+
+            fakeCursor.style.left = fakeMouse.x + 'px';
+            fakeCursor.style.top = fakeMouse.y + 'px';
+
+            // Heartbeat sinkron dengan visual
+            if (t > nextBeat && calibrationLevel > 10) {
+                playHeartbeat(calibrationLevel / 500);
+                nextBeat = t + (1000 - (calibrationLevel * 5));
+                targetCircle.style.transform = `translate(-50%, -50%) scale(${1 + calibrationLevel/200})`;
+            }
+
+            // KLIMAKS: Jika 100% tersinkron, kursor "diserang"
+            if (calibrationLevel >= 100) {
+                executeNeuralAttack();
+                return;
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        function executeNeuralAttack() {
+            isCalibrated = false;
+            statusDisplay.innerText = "CRITICAL: NEURAL REJECTION";
+            
+            // Kursor mulai meronta menjauhi kontrol pengguna
+            let attackTime = 0;
+            const attackLoop = () => {
+                attackTime++;
+                
+                // Menarik kursor ke arah acak dengan paksa
+                fakeMouse.x += (Math.random() - 0.5) * 50;
+                fakeMouse.y += (Math.random() - 0.5) * 50;
+                
+                fakeCursor.style.left = fakeMouse.x + 'px';
+                fakeCursor.style.top = fakeMouse.y + 'px';
+                fakeCursor.style.backgroundColor = "red";
+                fakeCursor.style.boxShadow = "0 0 30px red";
+
+                glitchOverlay.style.opacity = Math.random() * 0.5;
+
+                if (attackTime < 100) {
+                    requestAnimationFrame(attackLoop);
+                } else {
+                    // Akhir: Layar memucat seperti kehilangan kesadaran
+                    document.body.style.backgroundColor = "#fff";
+                    document.body.innerHTML = "";
+                    
+                    const finalOsc = audioCtx.createOscillator();
+                    finalOsc.frequency.value = 1000;
+                    const finalGain = audioCtx.createGain();
+                    finalGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    finalGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2);
+                    finalOsc.connect(finalGain); finalGain.connect(audioCtx.destination);
+                    finalOsc.start(); finalOsc.stop(audioCtx.currentTime + 2);
+                }
+            };
+            attackLoop();
+        }
+    </script>
+</body>
+</html>

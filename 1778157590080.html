@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P E R I F E R</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+        }
+
+        #canvas {
+            display: block; width: 100%; height: 100%;
+            filter: blur(1px) contrast(1.2);
+        }
+
+        /* Bayangan Perifer (The Stalker) */
+        #ghost-cursor {
+            position: fixed; width: 12px; height: 12px;
+            background: rgba(255, 255, 255, 0.03); /* Hampir tidak terlihat */
+            border-radius: 50%; pointer-events: none; z-index: 100;
+            filter: blur(4px);
+        }
+
+        #ui-text {
+            position: fixed; top: 20px; left: 20px;
+            color: #111; font-family: 'serif'; font-size: 12px;
+            letter-spacing: 2px; pointer-events: none;
+        }
+
+        #trigger {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1000; background: #000; color: #080808;
+            display: flex; justify-content: center; align-items: center;
+            font-family: serif; letter-spacing: 15px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="trigger">FOKUS PADA TENGAH</div>
+    <div id="ui-text">SISTEM MONITORING PSIKOLOGIS // JANGAN MENOLEH</div>
+    <div id="ghost-cursor"></div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const ghost = document.getElementById('ghost-cursor');
+        const trigger = document.getElementById('trigger');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let audioCtx;
+        let mouseX = 0, mouseY = 0;
+        let ghostX = 0, ghostY = 0;
+
+        trigger.addEventListener('click', () => {
+            trigger.style.display = 'none';
+            initAudio();
+            render();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Infrasound (18.9 Hz) - Frekuensi yang memicu rasa tidak nyaman/panik
+            const infrasound = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            infrasound.type = 'sine';
+            infrasound.frequency.setValueAtTime(18.9, audioCtx.currentTime);
+            gain.gain.value = 0.5;
+            infrasound.connect(gain); gain.connect(audioCtx.destination);
+            infrasound.start();
+
+            // Background "Ticking" yang sangat pelan dan tidak beraturan
+            setInterval(() => {
+                const click = audioCtx.createOscillator();
+                const clickGain = audioCtx.createGain();
+                click.type = 'sine';
+                click.frequency.setValueAtTime(Math.random() * 50 + 20, audioCtx.currentTime);
+                clickGain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                clickGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
+                click.connect(clickGain); clickGain.connect(audioCtx.destination);
+                click.start(); click.stop(audioCtx.currentTime + 0.1);
+            }, 1500);
+        }
+
+        function render() {
+            // Efek Trails
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Kursor Asli (Hanya titik redup)
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Logika Ghost Cursor (Bergerak di depan atau menjauh dari kursor asli)
+            // Ia mencoba berada di area penglihatan perifer pengguna
+            const dx = mouseX - ghostX;
+            const dy = mouseY - ghostY;
+            
+            ghostX += dx * 0.05 + (Math.random() - 0.5) * 20;
+            ghostY += dy * 0.05 + (Math.random() - 0.5) * 20;
+
+            ghost.style.left = ghostX + 'px';
+            ghost.style.top = ghostY + 'px';
+
+            // Jumpscare Subliminal (Kilatan bayangan wajah)
+            if (Math.random() > 0.995) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
+                ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 200, 400);
+                
+                // Suara "Ssshh" singkat
+                const noise = audioCtx.createBufferSource();
+                const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+                const data = buf.getChannelData(0);
+                for(let i=0; i<data.length; i++) data[i] = Math.random() * 0.01;
+                noise.buffer = buf;
+                noise.connect(audioCtx.destination);
+                noise.start();
+            }
+
+            requestAnimationFrame(render);
+        }
+    </script>
+</body>
+</html>

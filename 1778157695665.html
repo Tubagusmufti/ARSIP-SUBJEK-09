@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T A R G E T</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #030303; color: #1a1a1a;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden; cursor: none;
+        }
+
+        #terminal {
+            padding: 20px; font-size: 12px; line-height: 1.4;
+            height: 100%; display: flex; flex-direction: column;
+            justify-content: flex-start; pointer-events: none;
+        }
+
+        .log-entry { margin-bottom: 2px; }
+        .highlight { color: #400; font-weight: bold; }
+
+        /* Kursor "Pengamat" - Mengikuti Anda dengan jeda */
+        #watcher-cursor {
+            position: fixed; width: 40px; height: 40px;
+            border: 1px solid #200; border-radius: 50%;
+            pointer-events: none; z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+        }
+        #watcher-cursor::after {
+            content: ''; width: 2px; height: 2px; background: #500; border-radius: 50%;
+        }
+
+        #init-trigger {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1000; background: #000; color: #0a0a0a;
+            display: flex; justify-content: center; align-items: center;
+            letter-spacing: 10px; cursor: pointer;
+        }
+
+        /* Overlay Merah Samar saat "Target" ditemukan */
+        #danger-zone {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at var(--mx) var(--my), transparent 10%, rgba(20,0,0,0.8) 100%);
+            z-index: 50; pointer-events: none; opacity: 0; transition: opacity 2s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-trigger">MASUKKAN IDENTITAS</div>
+    
+    <div id="watcher-cursor"></div>
+    <div id="danger-zone"></div>
+
+    <div id="terminal">
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        const logsContainer = document.getElementById('logs');
+        const watcher = document.getElementById('watcher-cursor');
+        const trigger = document.getElementById('init-trigger');
+        const dangerZone = document.getElementById('danger-zone');
+
+        let audioCtx;
+        let mX = 0, mY = 0;
+        let wX = 0, wY = 0;
+
+        const terminalMessages = [
+            "INITIALIZING... OK",
+            "CONNECTING TO NEAREST NODE...",
+            "NODE 127.0.0.1 FOUND.",
+            "ANALYZING PERIPHERAL INPUTS...",
+            "WARNING: UNKNOWN ENTITY DETECTED AT CONSOLE.",
+            "CALCULATING DISTANCE...",
+            "DISTANCE: 0.4 METERS FROM SCREEN.",
+            "SCANNING BIOMETRIC DATA...",
+            "HEART RATE: ELEVATED.",
+            "PUPIL DILATION: DETECTED.",
+            "VERIFYING TARGET IDENTITY...",
+            "IDENTITY: CONFIRMED.",
+            "INITIATING OBSERVATION PROTOCOL.",
+            "DO NOT MOVE.",
+            "THEY ARE LOOKING AT YOU.",
+            "BEHIND THE GLASS.",
+            "INSIDE THE CODE."
+        ];
+
+        trigger.addEventListener('click', () => {
+            trigger.style.display = 'none';
+            initAudio();
+            startTerminal();
+            animateWatcher();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            mX = e.clientX;
+            mY = e.clientY;
+            document.documentElement.style.setProperty('--mx', mX + 'px');
+            document.documentElement.style.setProperty('--my', mY + 'px');
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // Suara ketikan mekanis statis
+            const hum = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            hum.type = 'sine';
+            hum.frequency.value = 50;
+            g.gain.value = 0.02;
+            hum.connect(g); g.connect(audioCtx.destination);
+            hum.start();
+        }
+
+        function playLogSound() {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.01, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function startTerminal() {
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i >= terminalMessages.length) {
+                    clearInterval(interval);
+                    dangerZone.style.opacity = "1";
+                    return;
+                }
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                if(i > 10) entry.className += ' highlight';
+                entry.innerText = `[${new Date().toLocaleTimeString()}] ${terminalMessages[i]}`;
+                logsContainer.appendChild(entry);
+                playLogSound();
+                i++;
+                
+                // Scroll otomatis ke bawah
+                window.scrollTo(0, document.body.scrollHeight);
+            }, 2500); // Pesan muncul perlahan untuk membangun tensi
+        }
+
+        function animateWatcher() {
+            // "Pengamat" mengikuti kursor Anda dengan jeda (Lagging effect)
+            // Membuat kesan ada sesuatu yang mengejar kursor Anda
+            wX += (mX - wX) * 0.02;
+            wY += (mY - wY) * 0.02;
+            watcher.style.left = wX - 20 + 'px';
+            watcher.style.top = wY - 20 + 'px';
+            requestAnimationFrame(animateWatcher);
+        }
+    </script>
+</body>
+</html>

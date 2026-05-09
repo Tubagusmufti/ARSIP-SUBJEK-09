@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S I L E N C E</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; color: #fff; overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            cursor: none; user-select: none;
+        }
+
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: #000; z-index: 100; cursor: pointer;
+        }
+
+        .title { font-size: 2rem; letter-spacing: 10px; color: #555; margin-bottom: 20px; text-shadow: 0 0 10px #f00; }
+        .subtitle { font-size: 1rem; color: #333; letter-spacing: 2px; }
+
+        #visualizer-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; justify-content: center; align-items: center; flex-direction: column;
+        }
+
+        #status-text {
+            font-size: 1.5rem; letter-spacing: 5px; color: #880000;
+            margin-bottom: 50px; opacity: 0; transition: opacity 2s;
+            text-align: center; white-space: pre-wrap;
+        }
+
+        /* Representasi "Telinga" Entitas */
+        .entity-core {
+            width: 10px; height: 10px; border-radius: 50%;
+            background-color: #ff0000; box-shadow: 0 0 20px #ff0000;
+            transition: all 0.1s;
+        }
+
+        /* Lapisan Ketakutan (Jumpscare) */
+        #scare-layer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #ff0000; display: none; z-index: 999;
+            justify-content: center; align-items: center;
+            mix-blend-mode: difference;
+        }
+
+        .scare-text {
+            font-size: 15vw; font-weight: 900; color: #fff;
+            transform: scale(1); animation: zoom 0.1s infinite alternate;
+        }
+
+        @keyframes zoom {
+            from { transform: scale(1) translate((Math.random() - 0.5) * 20px, (Math.random() - 0.5) * 20px); }
+            to { transform: scale(1.1) translate((Math.random() - 0.5) * -20px, (Math.random() - 0.5) * -20px); }
+        }
+
+        #static-noise {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0.05; pointer-events: none;
+            background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">
+        <div class="title">T E L I N G A</div>
+        <div class="subtitle">IZINKAN MIKROFON. LALU DIAM.</div>
+    </div>
+
+    <div id="visualizer-container">
+        <div id="status-text">MENDENGARKAN RUANGAN...</div>
+        <div class="entity-core" id="core"></div>
+    </div>
+
+    <div id="scare-layer">
+        <div class="scare-text">KUTEMUKAN KAU</div>
+    </div>
+
+    <div id="static-noise"></div>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const visualizerContainer = document.getElementById('visualizer-container');
+        const statusText = document.getElementById('status-text');
+        const core = document.getElementById('core');
+        const scareLayer = document.getElementById('scare-layer');
+        const staticNoise = document.getElementById('static-noise');
+
+        let audioCtx;
+        let analyser;
+        let microphone;
+        let isListening = false;
+        let threshold = 35; // Ambang batas volume. Semakin kecil semakin sensitif.
+        let timeSurvived = 0;
+
+        initScreen.addEventListener('click', async () => {
+            initScreen.style.display = 'none';
+            visualizerContainer.style.display = 'flex';
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setupAudio(stream);
+            } catch (err) {
+                statusText.style.opacity = '1';
+                statusText.innerHTML = "MIKROFON DIBLOKIR.<br>KAU PIKIR BISA SEMBUNYI DENGAN MENUTUP TELINGAKU?";
+                statusText.style.color = "#ff0000";
+                setTimeout(triggerScare, 3000);
+            }
+        });
+
+        function setupAudio(stream) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            
+            microphone = audioCtx.createMediaStreamSource(stream);
+            microphone.connect(analyser);
+            
+            // Background hum
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 40; // Low frequency rumble
+            gain.gain.value = 0.1;
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start();
+
+            setTimeout(() => {
+                statusText.style.opacity = '1';
+                isListening = true;
+                monitorRoom();
+            }, 2000);
+        }
+
+        function monitorRoom() {
+            if (!isListening) return;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+            }
+            let averageVolume = sum / bufferLength;
+
+            // Visual feedback: Inti merah berdenyut sesuai volume ruangan
+            let coreSize = 10 + (averageVolume * 2);
+            core.style.width = coreSize + 'px';
+            core.style.height = coreSize + 'px';
+            core.style.boxShadow = `0 0 ${coreSize * 2}px rgba(255, 0, 0, 0.8)`;
+
+            // Jika ada suara yang melebihi ambang batas
+            if (averageVolume > threshold) {
+                isListening = false;
+                triggerScare();
+                return;
+            }
+
+            // Eskalasi ketegangan seiring waktu
+            timeSurvived += 16; // Asumsi ~60fps (16ms per frame)
+            
+            if (timeSurvived > 5000 && timeSurvived < 5020) {
+                statusText.innerText = "JANGAN BERGERAK.";
+                threshold = 25; // Menjadi lebih sensitif
+            } else if (timeSurvived > 10000 && timeSurvived < 10020) {
+                statusText.innerText = "SAYA MENDENGAR NAPASMU.";
+                threshold = 15; // Sangat sensitif
+                staticNoise.style.opacity = '0.2';
+            } else if (timeSurvived > 15000 && timeSurvived < 15020) {
+                statusText.innerText = "ADA DI BELAKANGMU.";
+                threshold = 5; // Ekstrem, helaan napas akan memicu
+                staticNoise.style.opacity = '0.5';
+            }
+
+            requestAnimationFrame(monitorRoom);
+        }
+
+        function triggerScare() {
+            // Visual
+            visualizerContainer.style.display = 'none';
+            scareLayer.style.display = 'flex';
+            document.body.style.backgroundColor = "#fff";
+            
+            // Audio Screech Ekstrem
+            if (audioCtx) {
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const masterGain = audioCtx.createGain();
+
+                osc1.type = 'square';
+                osc2.type = 'sawtooth';
+
+                osc1.frequency.setValueAtTime(1500, audioCtx.currentTime);
+                osc1.frequency.exponentialRampToValueAtTime(3000, audioCtx.currentTime + 0.1);
+                
+                osc2.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc2.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+
+                masterGain.gain.setValueAtTime(3.0, audioCtx.currentTime); // Volume maksimal
+                masterGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.0);
+
+                osc1.connect(masterGain);
+                osc2.connect(masterGain);
+                masterGain.connect(audioCtx.destination);
+
+                osc1.start(); osc2.start();
+                osc1.stop(audioCtx.currentTime + 1.0);
+                osc2.stop(audioCtx.currentTime + 1.0);
+            }
+
+            // Matikan script setelah beberapa saat
+            setTimeout(() => {
+                scareLayer.style.display = 'none';
+                document.body.style.backgroundColor = "#000";
+                staticNoise.style.opacity = '0';
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

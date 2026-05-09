@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K O S O N G</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #050505; color: #444; z-index: 1000; cursor: pointer;
+            letter-spacing: 5px; text-transform: uppercase; transition: opacity 1s;
+        }
+
+        #init-screen:hover { color: #fff; }
+
+        /* Layar Hitam Absolut */
+        #void {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 500; display: none;
+        }
+
+        /* Teks Subliminal (Nyaris tak terlihat) */
+        .subliminal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #020202; font-size: 2rem; font-weight: bold; text-align: center;
+            white-space: pre-wrap; z-index: 501;
+        }
+
+        /* Wajah Abstrak Jumpscare */
+        #hell-layer {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 900; display: none; background: #000;
+            mix-blend-mode: difference;
+        }
+
+        .eye-socket {
+            position: absolute; width: 300px; height: 300px;
+            background: radial-gradient(circle, #ff0000 0%, #000 70%);
+            border-radius: 50%; filter: blur(10px) contrast(500%);
+            animation: shake 0.05s infinite;
+        }
+
+        #eye-left { top: 20%; left: 20%; }
+        #eye-right { top: 20%; right: 20%; }
+        
+        #maw {
+            position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%);
+            width: 80%; height: 200px;
+            background: repeating-linear-gradient(90deg, #fff, #fff 10px, #000 10px, #000 20px);
+            filter: blur(5px) contrast(300%);
+            animation: jaw-shake 0.1s infinite alternate;
+        }
+
+        /* Strobe Effect */
+        #strobe {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: white; z-index: 999; display: none;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(2px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(0px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(2px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(2px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        @keyframes jaw-shake {
+            0% { height: 180px; bottom: 12%; }
+            100% { height: 250px; bottom: 8%; }
+        }
+
+        /* Glitch Teks di Akhir */
+        #fatal-error {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: red; font-size: 5vw; font-family: monospace; font-weight: 900;
+            z-index: 1000; display: none; text-shadow: 5px 5px 0 #00f, -5px -5px 0 #0f0;
+            animation: shake 0.1s infinite; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">SINKRONISASI KESADARAN. KLIK UNTUK MELANJUTKAN.</div>
+    
+    <div id="void">
+        <div class="subliminal" id="subtext"></div>
+    </div>
+
+    <div id="hell-layer">
+        <div class="eye-socket" id="eye-left"></div>
+        <div class="eye-socket" id="eye-right"></div>
+        <div id="maw"></div>
+    </div>
+
+    <div id="strobe"></div>
+    <div id="fatal-error">KONEKSI TERPUTUS<br>SISTEM DIAMBIL ALIH</div>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const voidScreen = document.getElementById('void');
+        const subtext = document.getElementById('subtext');
+        const hellLayer = document.getElementById('hell-layer');
+        const strobe = document.getElementById('strobe');
+        const fatalError = document.getElementById('fatal-error');
+
+        let audioCtx;
+        
+        initScreen.addEventListener('click', () => {
+            // Memaksa masuk Fullscreen API untuk mengunci visual pengguna
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.log(`Fullscreen error: ${err.message}`);
+                });
+            }
+
+            initScreen.style.opacity = '0';
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                voidScreen.style.display = 'block';
+                startSequence();
+            }, 1000);
+        });
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // Suara gemuruh sangat rendah (mensimulasikan tekanan di telinga)
+        function playInfrasound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(30, audioCtx.currentTime); // Infrasound border
+            osc.frequency.linearRampToValueAtTime(15, audioCtx.currentTime + 10);
+            
+            gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 10);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            return { osc, gain };
+        }
+
+        // Detak jantung yang melambat lalu berhenti
+        function playDeadHeartbeat() {
+            let bpm = 80;
+            let intervalId;
+
+            function beat() {
+                if(bpm < 20) return; // Jantung berhenti
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(50, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(1.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+
+                bpm -= 5; // Semakin lambat
+                const interval = (60 / bpm) * 1000;
+                setTimeout(beat, interval);
+            }
+            beat();
+        }
+
+        // Jeritan Sintetis Klimaks
+        function triggerScreech() {
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(3.0, audioCtx.currentTime);
+            masterGain.connect(audioCtx.destination);
+
+            // Layer 1: High frequency square wave (Piercing)
+            const osc1 = audioCtx.createOscillator();
+            osc1.type = 'square';
+            osc1.frequency.setValueAtTime(2000, audioCtx.currentTime);
+            osc1.frequency.exponentialRampToValueAtTime(4000, audioCtx.currentTime + 0.2);
+            osc1.connect(masterGain);
+            osc1.start();
+
+            // Layer 2: Dissonant Sawtooth (Harsh texture)
+            const osc2 = audioCtx.createOscillator();
+            osc2.type = 'sawtooth';
+            osc2.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc2.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.5);
+            osc2.connect(masterGain);
+            osc2.start();
+
+            // Layer 3: White Noise Burst
+            const bufferSize = audioCtx.sampleRate * 2;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.connect(masterGain);
+            noise.start();
+
+            // Potong tiba-tiba
+            setTimeout(() => {
+                masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                osc1.stop(); osc2.stop(); noise.stop();
+            }, 800);
+        }
+
+        function startSequence() {
+            initAudio();
+            const infra = playInfrasound();
+            playDeadHeartbeat();
+
+            // Fase 1: Kegelapan dan teks subliminal yang menekan mental
+            const messages = [
+                "Apakah kamu sendirian?",
+                "Periksa sudut ruanganmu.",
+                "Kamu merasa aman di balik layar ini.",
+                "Itu sebuah kesalahan.",
+                "Jangan bergerak."
+            ];
+
+            let msgIndex = 0;
+            const msgInterval = setInterval(() => {
+                if (msgIndex < messages.length) {
+                    subtext.innerText = messages[msgIndex];
+                    subtext.style.color = "#050505"; // Sangat samar
+                    
+                    setTimeout(() => {
+                        subtext.innerText = "";
+                    }, 500); // Muncul hanya setengah detik
+                    
+                    msgIndex++;
+                } else {
+                    clearInterval(msgInterval);
+                }
+            }, 2000);
+
+            // Fase 2: Keheningan yang menipu
+            setTimeout(() => {
+                infra.gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+                // Jeda hening 3 detik
+                
+                // Fase 3: Sensory Overload (Jumpscare)
+                setTimeout(() => {
+                    executeClimax();
+                }, 3000);
+
+            }, 10000);
+        }
+
+        let strobeInterval;
+
+        function executeClimax() {
+            triggerScreech();
+            
+            // Tampilkan wujud abstrak
+            hellLayer.style.display = 'block';
+            
+            // Stroboskopik ekstrem
+            strobe.style.display = 'block';
+            let isWhite = true;
+            strobeInterval = setInterval(() => {
+                strobe.style.backgroundColor = isWhite ? 'white' : 'transparent';
+                isWhite = !isWhite;
+            }, 30); // Flash sangat cepat
+
+            // Akhiri siksaan
+            setTimeout(() => {
+                clearInterval(strobeInterval);
+                strobe.style.display = 'none';
+                hellLayer.style.display = 'none';
+                
+                // Tampilkan pesan error
+                fatalError.style.display = 'block';
+                document.body.style.backgroundColor = "#000";
+
+                // Suara dengung statis pasca-serangan
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(60, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start();
+
+            }, 800);
+        }
+    </script>
+</body>
+</html>

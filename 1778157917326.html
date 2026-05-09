@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P A R A S I T</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+        }
+        canvas {
+            display: block; width: 100%; height: 100%;
+            filter: contrast(800%) brightness(40%) saturate(500%) blur(0.5px);
+        }
+        #init-gate {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #100; display: flex;
+            justify-content: center; align-items: center;
+            font-family: 'Courier New', monospace; letter-spacing: 20px;
+            cursor: pointer; z-index: 9999; transition: color 1s;
+        }
+        #init-gate:hover { color: #f00; }
+        
+        /* Pesan subliminal yang muncul secara sporadis di balik canvas */
+        .subliminal {
+            position: fixed; color: #050000; font-family: serif;
+            font-size: 15vw; pointer-events: none; z-index: 1;
+            text-transform: uppercase; letter-spacing: -10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-gate">M E N J A D I . I N A N G</div>
+    <div id="sub" class="subliminal" style="top: 20%; left: 10%;">LIHAT</div>
+    <canvas id="c"></canvas>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const gate = document.getElementById('init-gate');
+        const sub = document.getElementById('sub');
+
+        canvas.width = window.innerWidth / 2; 
+        canvas.height = window.innerHeight / 2;
+
+        let audioCtx;
+        let mX = canvas.width / 2, mY = canvas.height / 2;
+        let pX = mX, pY = mY;
+        let active = false;
+        let frame = 0;
+
+        gate.addEventListener('click', () => {
+            gate.style.display = 'none';
+            initAudio();
+            active = true;
+            render();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            // Manipulasi Input: Memberikan resistensi pada kursor
+            const strength = 0.08;
+            mX += (e.clientX / 2 - mX) * strength + (Math.random() - 0.5) * 5;
+            mY += (e.clientY / 2 - mY) * strength + (Math.random() - 0.5) * 5;
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Infrasound rumble
+            const low = audioCtx.createOscillator();
+            const lowG = audioCtx.createGain();
+            low.type = 'sine';
+            low.frequency.value = 22; 
+            lowG.gain.value = 0.5;
+            low.connect(lowG); lowG.connect(audioCtx.destination);
+            low.start();
+
+            // Chopped Breathing (Audio Parasit)
+            setInterval(() => {
+                if(!active) return;
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(Math.random() * 60 + 40, audioCtx.currentTime);
+                g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                osc.connect(g); g.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            }, 300);
+        }
+
+        function render() {
+            if(!active) return;
+            frame++;
+
+            // Recursive Feedback: Membuat jejak visual yang "membusuk"
+            ctx.globalAlpha = 0.05;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Menggambar parasit kursor
+            const dist = Math.hypot(mX - pX, mY - pY);
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = `rgb(${100 + dist * 5}, 0, 0)`;
+            ctx.lineWidth = Math.random() * 3;
+            
+            ctx.beginPath();
+            ctx.moveTo(pX, pY);
+            ctx.lineTo(mX, mY);
+            ctx.stroke();
+
+            // Partikel saraf yang pecah
+            for(let i=0; i<3; i++) {
+                ctx.fillStyle = Math.random() > 0.9 ? '#fff' : '#400';
+                ctx.fillRect(mX + (Math.random()-0.5)*50, mY + (Math.random()-0.5)*50, 1, 1);
+            }
+
+            pX = mX; pY = mY;
+
+            // Subliminal Glitch
+            if(frame % 100 === 0) {
+                sub.style.opacity = "0.2";
+                sub.innerText = ["DI SINI", "MEREKA", "IKUTI", "JANGAN"][Math.floor(Math.random()*4)];
+                setTimeout(() => sub.style.opacity = "0", 50);
+            }
+
+            // Distorsi Layar Mendadak (VRAM Corruption Simulator)
+            if(Math.random() > 0.98) {
+                const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                ctx.putImageData(img, (Math.random()-0.5)*20, (Math.random()-0.5)*20);
+            }
+
+            requestAnimationFrame(render);
+        }
+    </script>
+</body>
+</html>

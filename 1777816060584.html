@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cognitive Overload // NULL</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; cursor: crosshair; }
+        
+        body, html {
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            font-family: monospace;
+            filter: contrast(150%) saturate(200%);
+        }
+
+        #abyss {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            mix-blend-mode: difference;
+        }
+
+        #dom-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+            pointer-events: none;
+            perspective: 1000px;
+        }
+
+        .chaos-node {
+            position: absolute;
+            color: #fff;
+            font-weight: bold;
+            mix-blend-mode: exclusion;
+            white-space: nowrap;
+            will-change: transform, opacity;
+            text-shadow: 2px 2px 0px #f00, -2px -2px 0px #0ff;
+        }
+
+        @keyframes glitch-skew {
+            0% { transform: skew(0deg); filter: hue-rotate(0deg); }
+            20% { transform: skew(-20deg); filter: hue-rotate(90deg); }
+            40% { transform: skew(20deg); filter: hue-rotate(180deg); }
+            60% { transform: skew(-10deg); filter: hue-rotate(270deg); }
+            80% { transform: skew(10deg); filter: hue-rotate(360deg); }
+            100% { transform: skew(0deg); }
+        }
+
+        .global-glitch {
+            animation: glitch-skew 0.1s infinite steps(2);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="abyss"></canvas>
+    <div id="dom-layer"></div>
+
+    <script>
+        // 1. Fraktal Umpan Balik Visual (Canvas Feedback Loop)
+        const canvas = document.getElementById('abyss');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        let w, h;
+
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, w, h);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        let time = 0;
+        function renderAbyss() {
+            // Salin frame sebelumnya, perbesar, putar, dan timpa dengan mode 'difference'
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(canvas, -2, -2, w + 4, h + 4);
+            
+            ctx.globalCompositeOperation = 'difference';
+            
+            // Injeksi noise geometris
+            ctx.fillStyle = `hsl(${(time * 100) % 360}, 100%, 50%)`;
+            ctx.beginPath();
+            ctx.arc(
+                (Math.sin(time) * w/3) + w/2, 
+                (Math.cos(time * 1.5) * h/3) + h/2, 
+                Math.random() * 150 + 50, 
+                0, Math.PI * 2
+            );
+            ctx.fill();
+
+            ctx.fillStyle = `hsl(${((time + 2) * 50) % 360}, 100%, 80%)`;
+            ctx.fillRect(Math.random() * w, Math.random() * h, Math.random() * w, Math.random() * 50);
+
+            time += 0.05;
+            requestAnimationFrame(renderAbyss);
+        }
+        renderAbyss();
+
+        // 2. Generator Teks Terkorupsi (Zalgo / Demonic Text)
+        const dict = ["AMANIN", "ANOMALI", "OVERRIDE", "SINKRONISASI", "LATENSI", "HANCUR", "0x000000", "NULL", "DEKRIPSI"];
+        function corruptText(text) {
+            let corrupted = "";
+            for(let i = 0; i < text.length; i++) {
+                corrupted += text[i];
+                let noiseAmount = Math.floor(Math.random() * 10);
+                for(let j = 0; j < noiseAmount; j++) {
+                    corrupted += String.fromCharCode(0x0300 + Math.random() * 0x006F);
+                }
+            }
+            return corrupted;
+        }
+
+        // 3. Serangan Manipulasi DOM Eksponensial
+        const domLayer = document.getElementById('dom-layer');
+        let nodeCount = 0;
+        const MAX_NODES = 300; // Batas agar peramban tidak crash total seketika
+
+        function spawnChaosNode() {
+            if(nodeCount > MAX_NODES) return;
+
+            const el = document.createElement('div');
+            el.className = 'chaos-node';
+            
+            // Teks terkorupsi acak
+            el.innerText = corruptText(dict[Math.floor(Math.random() * dict.length)]);
+            
+            // Penempatan, skala, dan rotasi 3D acak ekstrim
+            const x = (Math.random() - 0.5) * 200;
+            const y = (Math.random() - 0.5) * 200;
+            const z = (Math.random() - 1) * 1000;
+            const rotX = Math.random() * 360;
+            const rotY = Math.random() * 360;
+            const rotZ = Math.random() * 360;
+            const scale = Math.random() * 5 + 0.1;
+
+            el.style.left = `${Math.random() * 100}vw`;
+            el.style.top = `${Math.random() * 100}vh`;
+            el.style.transform = `translate3d(${x}vw, ${y}vh, ${z}px) rotateX(${rotX}deg) rotateY(${rotY}deg) rotateZ(${rotZ}deg) scale(${scale})`;
+            el.style.fontSize = `${Math.random() * 5 + 1}rem`;
+            
+            domLayer.appendChild(el);
+            nodeCount++;
+
+            // Mutasi node secara konstan setelah di-spawn
+            const mutator = setInterval(() => {
+                el.innerText = corruptText(dict[Math.floor(Math.random() * dict.length)]);
+                el.style.transform = `translate3d(${(Math.random() - 0.5) * 200}vw, ${(Math.random() - 0.5) * 200}vh, ${(Math.random() - 1) * 1000}px) scale(${Math.random() * 8})`;
+                el.style.color = Math.random() > 0.5 ? '#fff' : '#000';
+            }, Math.random() * 300 + 50);
+
+            // Hapus node setelah beberapa saat untuk memberi ruang iterasi baru
+            setTimeout(() => {
+                clearInterval(mutator);
+                el.remove();
+                nodeCount--;
+            }, Math.random() * 4000 + 1000);
+        }
+
+        // Jalankan injeksi DOM secara agresif
+        setInterval(spawnChaosNode, 20);
+
+        // 4. Intervensi Kursor yang Mengubah Realitas
+        document.addEventListener('mousemove', (e) => {
+            const distortX = (e.clientX / w) * 100;
+            const distortY = (e.clientY / h) * 100;
+            document.body.style.filter = `contrast(${distortX + 100}%) saturate(${distortY + 100}%) invert(${Math.random() > 0.9 ? 100 : 0}%)`;
+            
+            // Terapkan guncangan layar jika kursor bergerak terlalu cepat
+            if(Math.abs(e.movementX) > 50 || Math.abs(e.movementY) > 50) {
+                document.body.classList.add('global-glitch');
+                setTimeout(() => document.body.classList.remove('global-glitch'), 100);
+            }
+        });
+
+        // 5. Gangguan Audio Konseptual (Mengganti ukuran window secara paksa jika memungkinkan, atau sekadar merusak layout)
+        window.addEventListener('click', () => {
+            domLayer.style.transform = `rotateZ(${Math.random() * 360}deg) scale(${Math.random() * 3 + 1})`;
+        });
+
+    </script>
+</body>
+</html>

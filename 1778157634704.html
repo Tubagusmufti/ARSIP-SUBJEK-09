@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N E K R O S I S</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+        }
+        canvas {
+            display: block; width: 100%; height: 100%;
+            filter: contrast(400%) brightness(80%) saturate(0);
+        }
+        #blackout {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 1000; display: flex;
+            justify-content: center; align-items: center;
+            color: #050505; font-family: serif; letter-spacing: 20px; cursor: pointer;
+        }
+        #jumpscare-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #fff; z-index: 2000; display: none;
+            justify-content: center; align-items: center;
+        }
+        .vein {
+            position: absolute; width: 1px; background: #f00; opacity: 0.2;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="blackout">MASUK</div>
+    <div id="jumpscare-overlay">
+        <div style="font-size: 20vw; font-weight: 900; color: #000; transform: scale(1.5);">MATI</div>
+    </div>
+    <canvas id="c"></canvas>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const blackout = document.getElementById('blackout');
+        const scayer = document.getElementById('jumpscare-overlay');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let audioCtx, masterGain, isDead = false;
+        let points = [];
+
+        blackout.addEventListener('click', () => {
+            blackout.style.display = 'none';
+            initAudio();
+            loop();
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
+            
+            // Background rumble (Suara mesin pemotong yang jauh)
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.value = 25;
+            const g = audioCtx.createGain();
+            g.gain.value = 0.1;
+            osc.connect(g); g.connect(masterGain);
+            osc.start();
+
+            // LFO untuk suara "napas" mekanis
+            const lfo = audioCtx.createOscillator();
+            lfo.frequency.value = 0.5;
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 0.05;
+            lfo.connect(lfoGain); lfoGain.connect(masterGain.gain);
+            lfo.start();
+        }
+
+        function playScream() {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(4000, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+            g.gain.setValueAtTime(2.0, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            if(isDead) return;
+            points.push({x: e.clientX, y: e.clientY, r: 20, o: 1.0});
+            if(points.length > 100) {
+                // Trigger Jumpscare jika terlalu banyak bergerak
+                isDead = true;
+                triggerJumpscare();
+            }
+        });
+
+        function triggerJumpscare() {
+            scayer.style.display = 'flex';
+            playScream();
+            
+            // Strobe effect
+            let i = 0;
+            const strobe = setInterval(() => {
+                scayer.style.backgroundColor = i % 2 === 0 ? '#fff' : '#f00';
+                i++;
+                if(i > 10) {
+                    clearInterval(strobe);
+                    document.body.innerHTML = "";
+                    document.body.style.backgroundColor = "#000";
+                }
+            }, 50);
+        }
+
+        function loop() {
+            if(isDead) return;
+
+            // Fade effect (Korupsi visual)
+            ctx.fillStyle = 'rgba(0,0,0,0.05)';
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+
+            points.forEach((p, i) => {
+                p.r += 2;
+                p.o -= 0.02;
+                if(p.o <= 0) points.splice(i, 1);
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+                // Menggambar lingkaran "pecah"
+                ctx.strokeStyle = `rgba(255,255,255,${p.o})`;
+                ctx.lineWidth = Math.random() * 10;
+                ctx.stroke();
+                
+                // Menggambar garis-garis saraf acak
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + (Math.random()-0.5)*200, p.y + (Math.random()-0.5)*200);
+                ctx.strokeStyle = `rgba(255,0,0,${p.o * 0.5})`;
+                ctx.stroke();
+            });
+
+            // Random static "glitch"
+            if(Math.random() > 0.95) {
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 50, 2);
+            }
+
+            requestAnimationFrame(loop);
+        }
+    </script>
+</body>
+</html>

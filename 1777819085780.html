@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T E R M I N A L // 0xDEAD</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #010101; color: #ff3333;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden; cursor: none;
+        }
+
+        #terminal {
+            position: absolute; top: 20px; left: 20px;
+            width: 80%; height: 80%; z-index: 10;
+            font-size: 14px; text-shadow: 0 0 5px #ff0000;
+            pointer-events: none; white-space: pre-wrap;
+            transition: opacity 0.5s;
+        }
+
+        #video-feed {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            object-fit: cover; opacity: 0; filter: contrast(300%) saturate(500%) sepia(100%) hue-rotate(-50deg) brightness(0.3);
+            z-index: 1; transition: opacity 5s ease-in; pointer-events: none;
+        }
+
+        #overlay-vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 10%, #000 80%);
+            z-index: 5; pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        #btn-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 100; text-align: center;
+        }
+
+        button {
+            background: transparent; color: #444; border: 1px solid #444;
+            padding: 10px 20px; font-family: inherit; font-size: 16px;
+            cursor: pointer; transition: 0.3s; letter-spacing: 5px;
+        }
+
+        button:hover { color: #f00; border-color: #f00; background: rgba(255,0,0,0.1); }
+        
+        .scanline {
+            width: 100%; height: 10px; position: absolute; top: 0; left: 0;
+            background: rgba(255, 0, 0, 0.1); opacity: 0.4;
+            animation: scan 4s linear infinite; z-index: 8; pointer-events: none;
+        }
+
+        /* --- Elemen Jump Scare --- */
+        #scare-container {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #000; z-index: 9999;
+            justify-content: center; align-items: center; flex-direction: column;
+        }
+
+        .scare-face {
+            width: 100vw; height: 100vh;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="30" cy="40" r="5" fill="%23ff0000"/><circle cx="70" cy="40" r="5" fill="%23ff0000"/><path d="M 20 80 Q 50 20 80 80" stroke="%23ff0000" stroke-width="3" fill="none"/></svg>') no-repeat center center;
+            background-size: cover;
+            position: absolute;
+            opacity: 0.8;
+            filter: contrast(500%) brightness(150%);
+            animation: violent-shake 0.1s infinite;
+        }
+
+        .scare-text {
+            font-size: 15vw; font-weight: bold; color: #fff;
+            text-shadow: 0 0 20px #f00, 5px 5px 0 #f00, -5px -5px 0 #00f;
+            z-index: 2;
+            animation: violent-shake 0.05s infinite;
+        }
+
+        @keyframes violent-shake {
+            0% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(-20px, 15px) scale(1.1); }
+            50% { transform: translate(20px, -15px) scale(1.05); }
+            75% { transform: translate(-15px, -20px) scale(1.15); }
+            100% { transform: translate(15px, 20px) scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanline" id="scan"></div>
+    <div id="overlay-vignette"></div>
+    <video id="video-feed" autoplay playsinline muted></video>
+    <div id="terminal"></div>
+
+    <div id="btn-container">
+        <button id="start-btn">S Y N C</button>
+    </div>
+
+    <div id="scare-container">
+        <div class="scare-face"></div>
+        <div class="scare-text">DI BELAKANGMU</div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('start-btn');
+        const btnContainer = document.getElementById('btn-container');
+        const terminal = document.getElementById('terminal');
+        const video = document.getElementById('video-feed');
+        const vignette = document.getElementById('overlay-vignette');
+        const scanline = document.getElementById('scan');
+        const scareContainer = document.getElementById('scare-container');
+        
+        let audioCtx;
+        let clientIP = "MENGAMBIL IP...";
+        let clientLocation = "MENGKALIBRASI KOORDINAT...";
+        let heartbeatInterval;
+
+        async function fetchIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                clientIP = data.ip;
+            } catch (e) {
+                clientIP = "UNKNOWN (PROKSI TERDETEKSI)";
+            }
+        }
+
+        function fetchLocation(callback) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        clientLocation = `LAT: ${position.coords.latitude.toFixed(6)}, LON: ${position.coords.longitude.toFixed(6)}`;
+                        callback();
+                    },
+                    (error) => {
+                        clientLocation = "AKSES DITOLAK / DATA TERENKRIPSI";
+                        callback();
+                    }
+                );
+            } else {
+                clientLocation = "TIDAK DIDUKUNG OLEH KLIEN";
+                callback();
+            }
+        }
+
+        btn.addEventListener('click', () => {
+            btnContainer.style.display = 'none';
+            initAudio();
+            
+            fetchIP().then(() => {
+                fetchLocation(() => {
+                    runTerminal();
+                });
+            });
+        });
+
+        function runTerminal() {
+            const bootSequence = [
+                "Menghubungkan ke node lokal...",
+                "Melewati firewall...",
+                "Akses root: DIIZINKAN.",
+                "Memindai direktori perangkat...",
+                "Mengekstraksi metadata jaringan...",
+                `> TARGET IPv4 RESOLVED: ${clientIP}`,
+                "Melacak topologi rute...",
+                "Meminta sinyal satelit GPS...",
+                `> POSISI TARGET DIKUNCI: ${clientLocation}`,
+                "Mendeteksi denyut nadi pengamat...",
+                "Mengaktifkan modul /dev/video0...",
+                "Merekam...",
+                "SAYA BISA MELIHAT ANDA."
+            ];
+
+            let lineIndex = 0;
+            
+            function typeLine() {
+                if (lineIndex >= bootSequence.length) {
+                    requestCamera();
+                    
+                    // Trigger the suspense sequence after terminal finishes
+                    setTimeout(initiateSuspense, 2000);
+                    return;
+                }
+                
+                const line = bootSequence[lineIndex];
+                let charIndex = 0;
+                const p = document.createElement('div');
+                terminal.appendChild(p);
+
+                function typeChar() {
+                    if (charIndex < line.length) {
+                        p.textContent += line[charIndex];
+                        charIndex++;
+                        setTimeout(typeChar, Math.random() * 40 + 10);
+                    } else {
+                        lineIndex++;
+                        setTimeout(typeLine, Math.random() * 800 + 400);
+                    }
+                }
+                typeChar();
+            }
+            typeLine();
+        }
+
+        async function requestCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                setTimeout(() => {
+                    video.style.opacity = '0.15'; 
+                }, 1000);
+            } catch (err) {
+                terminal.innerHTML += "<br><span style='color: #444;'>Kamera diblokir. Tidak masalah. Modul pelacakan lain tetap aktif.</span>";
+            }
+        }
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            function playHeartbeat() {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(45, audioCtx.currentTime); 
+                osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.5);
+                
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.6);
+            }
+
+            let bpm = 60;
+            function loopHeartbeat() {
+                playHeartbeat();
+                setTimeout(() => playHeartbeat(), 250); 
+                
+                const interval = (60 / bpm) * 1000;
+                bpm += 2; // Mempercepat detak jantung lebih agresif
+                if(bpm > 180) bpm = 180;
+                
+                heartbeatInterval = setTimeout(loopHeartbeat, interval);
+            }
+            loopHeartbeat();
+        }
+
+        function initiateSuspense() {
+            // Hentikan detak jantung, bersihkan layar, ciptakan keheningan mati
+            clearTimeout(heartbeatInterval);
+            terminal.style.opacity = '0';
+            video.style.opacity = '0';
+            vignette.style.opacity = '1';
+            vignette.style.background = '#000';
+            scanline.style.display = 'none';
+
+            // Tunggu 3.5 detik dalam keheningan total sebelum jump scare
+            setTimeout(triggerJumpScare, 3500);
+        }
+
+        function triggerJumpScare() {
+            // Tampilkan visual ekstrem
+            scareContainer.style.display = 'flex';
+
+            // Hasilkan Audio Screech Maksimal
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const osc3 = audioCtx.createOscillator();
+            const masterGain = audioCtx.createGain();
+
+            // Frekuensi disonan yang sangat kasar (simulasi jeritan digital)
+            osc1.type = 'sawtooth';
+            osc2.type = 'square';
+            osc3.type = 'sawtooth';
+
+            osc1.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc1.frequency.exponentialRampToValueAtTime(2000, audioCtx.currentTime + 0.5);
+            
+            osc2.frequency.setValueAtTime(1400, audioCtx.currentTime);
+            osc2.frequency.exponentialRampToValueAtTime(2500, audioCtx.currentTime + 0.5);
+
+            osc3.frequency.setValueAtTime(100, audioCtx.currentTime); // Bass distortion
+
+            masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            masterGain.gain.linearRampToValueAtTime(2.0, audioCtx.currentTime + 0.05); // Volume dinaikkan secara instan (clipping disengaja)
+            masterGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2.0);
+
+            osc1.connect(masterGain);
+            osc2.connect(masterGain);
+            osc3.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
+
+            osc1.start(); osc2.start(); osc3.start();
+            
+            // Matikan sistem setelah jump scare selesai
+            setTimeout(() => {
+                scareContainer.style.display = 'none';
+                document.body.style.backgroundColor = '#000';
+                osc1.stop(); osc2.stop(); osc3.stop();
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

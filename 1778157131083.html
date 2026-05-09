@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0 0 0</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden; cursor: none;
+            font-family: 'serif';
+        }
+
+        #init-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #000; color: #111; z-index: 1000; cursor: pointer;
+            letter-spacing: 15px; font-size: 0.8rem;
+        }
+
+        #init-screen:hover { color: #444; }
+
+        canvas {
+            display: block; width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; z-index: 1;
+        }
+
+        /* Titik Obsesi */
+        #dot {
+            position: absolute; width: 4px; height: 4px;
+            background: #fff; border-radius: 50%;
+            z-index: 100; cursor: none;
+            box-shadow: 0 0 10px #fff;
+        }
+
+        /* Layer Subliminal */
+        #subliminal-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #fff; z-index: 500;
+            display: none; justify-content: center; align-items: center;
+            font-size: 3rem; font-weight: 900; letter-spacing: -5px;
+            text-transform: uppercase; pointer-events: none;
+        }
+
+        #static-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="white" opacity="0.03"/></svg>');
+            z-index: 10; pointer-events: none; opacity: 0.2;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">PEMBERSIHAN PIKIRAN</div>
+    
+    <div id="dot"></div>
+    <div id="subliminal-layer"></div>
+    <div id="static-overlay"></div>
+    <canvas id="abyss"></canvas>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const dot = document.getElementById('dot');
+        const subliminal = document.getElementById('subliminal-layer');
+        const canvas = document.getElementById('abyss');
+        const gl = canvas.getContext('webgl');
+
+        let audioCtx;
+        let score = 0;
+        const messages = ["LIHAT", "DI BELAKANG", "SINI", "MATI", "HITUNG", "DAGING", "KOSONG"];
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        initScreen.addEventListener('click', () => {
+            initScreen.style.display = 'none';
+            initAudio();
+            initVisuals();
+            moveDot();
+        });
+
+        // Audio: Shephard Tone yang rusak & Bisikan Perifer
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Noise lantai dasar
+            const noise = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            noise.type = 'sine';
+            noise.frequency.value = 40; 
+            gain.gain.value = 0.1;
+            noise.connect(gain); gain.connect(audioCtx.destination);
+            noise.start();
+
+            // Interval untuk suara klik yang salah
+            setInterval(() => {
+                if(Math.random() > 0.8) {
+                    const click = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    click.type = 'square';
+                    click.frequency.setValueAtTime(Math.random() * 100, audioCtx.currentTime);
+                    g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                    click.connect(g); g.connect(audioCtx.destination);
+                    click.start(); click.stop(audioCtx.currentTime + 0.05);
+                }
+            }, 2000);
+        }
+
+        function moveDot() {
+            const x = Math.random() * (window.innerWidth - 20) + 10;
+            const y = Math.random() * (window.innerHeight - 20) + 10;
+            dot.style.left = x + 'px';
+            dot.style.top = y + 'px';
+        }
+
+        dot.addEventListener('mousedown', () => {
+            score++;
+            moveDot();
+            
+            // Mekanisme Flash Subliminal (Psikopatologi Visual)
+            if (score % 3 === 0) {
+                showSubliminal();
+            }
+
+            if (score > 20) {
+                canvas.style.filter = `blur(${score - 20}px) invert(100%)`;
+            }
+        });
+
+        function showSubliminal() {
+            subliminal.innerText = messages[Math.floor(Math.random() * messages.length)];
+            subliminal.style.display = 'flex';
+            
+            // Audio Pop keras
+            const pop = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            pop.frequency.setValueAtTime(10, audioCtx.currentTime);
+            pop.frequency.exponentialRampToValueAtTime(1, audioCtx.currentTime + 0.01);
+            g.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.01);
+            pop.connect(g); g.connect(audioCtx.destination);
+            pop.start(); pop.stop(audioCtx.currentTime + 0.01);
+
+            // Hanya 16ms (1 frame) - Sangat cepat untuk mata, tapi terekam otak
+            setTimeout(() => {
+                subliminal.style.display = 'none';
+            }, 16);
+        }
+
+        // WebGL: Rorschach Inkblot yang bergeser (Abstrak)
+        function initVisuals() {
+            const vsSource = `attribute vec2 p; void main(){gl_Position=vec4(p,0.,1.);}`;
+            const fsSource = `
+                precision highp float;
+                uniform float t;
+                uniform vec2 r;
+                void main() {
+                    vec2 uv = (gl_FragCoord.xy-.5*r)/r.y;
+                    float f = 0.0;
+                    uv *= 5.0;
+                    for(float i=1.0; i<6.0; i++){
+                        uv += vec2(0.7/i*sin(i*uv.y+t+i)+0.8, 0.4/i*sin(i*uv.x+t+i)+1.6);
+                        f += 0.5/length(uv);
+                    }
+                    gl_FragColor = vec4(vec3(pow(f, 3.0)*0.02), 1.0);
+                }
+            `;
+
+            const prog = gl.createProgram();
+            const sh = (type, src) => {
+                const s = gl.createShader(type);
+                gl.shaderSource(s, src); gl.compileShader(s); return s;
+            };
+            gl.attachShader(prog, sh(gl.VERTEX_SHADER, vsSource));
+            gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fsSource));
+            gl.linkProgram(prog); gl.useProgram(prog);
+
+            const buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+            const pLoc = gl.getAttribLocation(prog, "p");
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const tLoc = gl.getUniformLocation(prog, "t");
+            const rLoc = gl.getUniformLocation(prog, "r");
+
+            function render(now) {
+                gl.uniform1f(tLoc, now * 0.001);
+                gl.uniform2f(rLoc, canvas.width, canvas.height);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                requestAnimationFrame(render);
+            }
+            requestAnimationFrame(render);
+        }
+    </script>
+</body>
+</html>

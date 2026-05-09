@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J U R N A L</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #020202; color: #a3a3a3;
+            font-family: 'Times New Roman', Times, serif;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #000; color: #555; z-index: 1000; cursor: pointer;
+            letter-spacing: 5px; font-family: monospace; transition: 2s;
+        }
+
+        #editor-container {
+            width: 60vw; height: 70vh;
+            position: relative; z-index: 10;
+        }
+
+        .instruction {
+            font-size: 0.9rem; color: #444; margin-bottom: 20px;
+            letter-spacing: 2px; text-transform: uppercase; font-family: monospace;
+        }
+
+        #text-area {
+            width: 100%; height: 100%;
+            background: transparent; border: none; outline: none;
+            color: #d1d1d1; font-size: 1.5rem; line-height: 1.6;
+            resize: none; font-family: inherit;
+        }
+
+        #text-area::placeholder { color: #222; }
+
+        /* Siluet Halusinasi (Hanya terlihat jika kontras layar tinggi/di sudut mata) */
+        #phantom {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at 70% 30%, rgba(20, 0, 0, 0.05) 0%, transparent 20%);
+            pointer-events: none; z-index: 1; opacity: 0;
+            transition: opacity 10s, background 5s;
+        }
+
+        /* Filter CRT kotor */
+        .scanlines {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none; z-index: 100; opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">SINKRONISASI GELOMBANG OTAK... [KLIK]</div>
+
+    <div id="phantom"></div>
+    <div class="scanlines"></div>
+
+    <div id="editor-container">
+        <div class="instruction">Tuliskan sesuatu. Jangan berhenti mengetik.</div>
+        <textarea id="text-area" placeholder="Saya ingat bahwa..."></textarea>
+    </div>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const textArea = document.getElementById('text-area');
+        const phantom = document.getElementById('phantom');
+
+        let audioCtx;
+        let isActive = false;
+
+        // Karakter Zalgo untuk korupsi teks
+        const zalgoUp = ['\u030d', '\u030e', '\u0304', '\u0305', '\u033f', '\u0311', '\u0306', '\u0310', '\u0352', '\u0351', '\u0300', '\u0301', '\u030b', '\u030f', '\u0312', '\u0313', '\u0314', '\u033d', '\u0309', '\u0363', '\u0364', '\u0365', '\u0366', '\u0367', '\u0368', '\u0369', '\u036a', '\u036b', '\u036c', '\u036d', '\u036e', '\u036f', '\u033e', '\u035b', '\u0346', '\u031a'];
+        const zalgoDown = ['\u0316', '\u0317', '\u0318', '\u0319', '\u031c', '\u031d', '\u031e', '\u031f', '\u0320', '\u0324', '\u0325', '\u0326', '\u0329', '\u032a', '\u032b', '\u032c', '\u032d', '\u032e', '\u032f', '\u0330', '\u0331', '\u0332', '\u0333', '\u0339', '\u033a', '\u033b', '\u033c', '\u0345', '\u0347', '\u0348', '\u0349', '\u034d', '\u034e', '\u0353', '\u0354', '\u0355', '\u0356', '\u0359', '\u035a', '\u0323'];
+
+        const sinisterWords = {
+            "saya": "dia",
+            "aku": "kami",
+            "kita": "mereka",
+            "bahagia": "diawasi",
+            "aman": "terjebak",
+            "baik": "membusuk",
+            "hari": "kegelapan",
+            "cahaya": "mata",
+            "tidur": "mati",
+            "halo": "tolong",
+            "nama": "angka"
+        };
+
+        initScreen.addEventListener('click', () => {
+            initScreen.style.opacity = '0';
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                initAudio();
+                isActive = true;
+                textArea.focus();
+                startPhantom();
+            }, 2000);
+        });
+
+        // Modul Audio: Binaural Detuning (Ketidaknyamanan Psikoakustik)
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Channel Kiri
+            const oscLeft = audioCtx.createOscillator();
+            const pannerLeft = audioCtx.createStereoPanner();
+            const gainLeft = audioCtx.createGain();
+            
+            oscLeft.type = 'sine';
+            oscLeft.frequency.value = 100; // Frekuensi dasar
+            pannerLeft.pan.value = -1; // Full kiri
+            gainLeft.gain.value = 0.2;
+            
+            oscLeft.connect(pannerLeft);
+            pannerLeft.connect(gainLeft);
+            gainLeft.connect(audioCtx.destination);
+            
+            // Channel Kanan
+            const oscRight = audioCtx.createOscillator();
+            const pannerRight = audioCtx.createStereoPanner();
+            const gainRight = audioCtx.createGain();
+            
+            oscRight.type = 'sine';
+            oscRight.frequency.value = 100; 
+            pannerRight.pan.value = 1; // Full kanan
+            gainRight.gain.value = 0.2;
+            
+            oscRight.connect(pannerRight);
+            pannerRight.connect(gainRight);
+            gainRight.connect(audioCtx.destination);
+            
+            oscLeft.start();
+            oscRight.start();
+
+            // Detuning Loop: Secara perlahan memisahkan frekuensi untuk menciptakan ilusi getaran di dalam otak
+            let detuneAmount = 0;
+            setInterval(() => {
+                if(!isActive) return;
+                detuneAmount += 0.05;
+                if(detuneAmount > 15) detuneAmount = 15; // Batas detune (15Hz selisih menciptakan denyut binaural Alpha/Beta)
+                
+                oscRight.frequency.linearRampToValueAtTime(100 + detuneAmount, audioCtx.currentTime + 1);
+            }, 2000);
+        }
+
+        // Modul Audio: Bisikan acak saat mengetik
+        function playWhisper() {
+            if(!audioCtx || Math.random() > 0.15) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100 + Math.random() * 200, audioCtx.currentTime);
+            
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(2000 + Math.random() * 1000, audioCtx.currentTime);
+            filter.Q.value = 10;
+
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.6);
+        }
+
+        // Fungsi Zalgo Generator
+        function corruptWord(word) {
+            let corrupted = '';
+            for(let i=0; i<word.length; i++) {
+                corrupted += word[i];
+                // Tambah karakter atas
+                if(Math.random() > 0.7) corrupted += zalgoUp[Math.floor(Math.random() * zalgoUp.length)];
+                // Tambah karakter bawah
+                if(Math.random() > 0.7) corrupted += zalgoDown[Math.floor(Math.random() * zalgoDown.length)];
+            }
+            return corrupted;
+        }
+
+        // Gaslighting Text Logic
+        textArea.addEventListener('input', () => {
+            playWhisper();
+        });
+
+        // Secara asinkron mengubah teks yang sudah diketik
+        setInterval(() => {
+            if(!isActive || textArea.value.length < 10) return;
+
+            let text = textArea.value;
+            let words = text.split(' ');
+            let changed = false;
+
+            // 1. Subversi Makna (Tukar kata)
+            for(let i=0; i<words.length; i++) {
+                let cleanWord = words[i].toLowerCase().replace(/[^a-z]/g, '');
+                if(sinisterWords[cleanWord] && Math.random() > 0.6) {
+                    words[i] = words[i].replace(new RegExp(cleanWord, 'i'), sinisterWords[cleanWord]);
+                    changed = true;
+                }
+            }
+
+            // 2. Korupsi Zalgo (Glitch teks perlahan)
+            if(Math.random() > 0.7) {
+                let randomIndex = Math.floor(Math.random() * words.length);
+                words[randomIndex] = corruptWord(words[randomIndex]);
+                changed = true;
+            }
+
+            // Jika ada perubahan, perbarui textarea secara diam-diam
+            if(changed) {
+                let cursorPosition = textArea.selectionStart;
+                textArea.value = words.join(' ');
+                // Kembalikan posisi kursor agar pengguna tidak sadar
+                textArea.setSelectionRange(cursorPosition, cursorPosition);
+            }
+
+        }, 3000);
+
+        // Pergerakan bayangan perifer
+        function startPhantom() {
+            setInterval(() => {
+                phantom.style.opacity = (Math.random() * 0.4 + 0.1).toString();
+                let x = Math.random() * 100;
+                let y = Math.random() * 100;
+                phantom.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(20, 0, 0, 0.08) 0%, transparent 25%)`;
+            }, 8000);
+        }
+    </script>
+</body>
+</html>

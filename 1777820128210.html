@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K O N S O L</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #050505; color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+        }
+
+        #init-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #000; z-index: 100; cursor: pointer;
+            letter-spacing: 2px; text-transform: uppercase; transition: opacity 2s;
+            text-align: center; padding: 20px; box-sizing: border-box; color: #555;
+        }
+
+        #terminal-container {
+            padding: 20px; font-size: 1.2rem;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.4);
+            height: 100%; display: flex; flex-direction: column;
+        }
+
+        #history {
+            margin-bottom: 10px; white-space: pre-wrap; line-height: 1.5;
+        }
+
+        .input-line { display: flex; align-items: center; }
+        
+        .prompt::before { content: "root@local:~# "; color: #00aa00; }
+        .prompt-anomaly::before { content: "???@void:~# "; color: #ff0000; }
+
+        #output { color: #00ff00; letter-spacing: 1px; flex-grow: 1; word-break: break-all; }
+        .output-anomaly { color: #ff3333 !important; }
+
+        .cursor {
+            display: inline-block; width: 10px; height: 20px; background-color: #00ff00;
+            vertical-align: bottom; animation: blink 1s step-end infinite; margin-left: 2px;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Form tersembunyi untuk input mobile */
+        #hidden-form { position: absolute; top: -1000px; left: -1000px; opacity: 0; }
+
+        .glitch-layer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 50; opacity: 0; pointer-events: none; mix-blend-mode: exclusion;
+        }
+
+        #blackout {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 999; display: none;
+            justify-content: center; align-items: center;
+        }
+
+        /* Siluet mata samar di kegelapan */
+        .eyes {
+            width: 100vw; height: 100vh; opacity: 0;
+            background: 
+                radial-gradient(circle at 40% 45%, rgba(255,0,0,0.05) 0%, transparent 5%),
+                radial-gradient(circle at 60% 45%, rgba(255,0,0,0.05) 0%, transparent 5%);
+            transition: opacity 4s ease-in;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="init-screen">DIAGNOSTIK SISTEM<br><br>KETUK UNTUK MEMULAI</div>
+    
+    <form id="hidden-form">
+        <input type="text" id="hidden-input" autocomplete="off" spellcheck="false">
+    </form>
+
+    <div id="terminal-container">
+        <div id="history">Memuat kernel... OK.<br>Memeriksa integritas sistem... OK.<br>Menunggu input pengguna.</div>
+        <div class="input-line">
+            <span class="prompt" id="prompt-element"></span>
+            <span id="output"></span>
+            <span class="cursor" id="cursor-element"></span>
+        </div>
+    </div>
+
+    <div class="glitch-layer" id="glitch"></div>
+    <div id="blackout"><div class="eyes" id="watcher"></div></div>
+
+    <script>
+        const initScreen = document.getElementById('init-screen');
+        const output = document.getElementById('output');
+        const historyDiv = document.getElementById('history');
+        const hiddenInput = document.getElementById('hidden-input');
+        const hiddenForm = document.getElementById('hidden-form');
+        const promptElement = document.getElementById('prompt-element');
+        const cursorElement = document.getElementById('cursor-element');
+        const glitchLayer = document.getElementById('glitch');
+        const blackout = document.getElementById('blackout');
+        const watcher = document.getElementById('watcher');
+
+        let audioCtx;
+        let mode = 'NORMAL'; // State machine: NORMAL -> ANOMALY -> HIJACK
+        const hijackString = "KAU PIKIR KAU YANG MENGENDALIKAN SISTEM INI? TERUSLAH MENGETIK. ITU TIDAK AKAN MENYELAMATKANMU.";
+        let charIndex = 0;
+
+        initScreen.addEventListener('click', () => {
+            initScreen.style.opacity = '0';
+            setTimeout(() => {
+                initScreen.style.display = 'none';
+                initAudio();
+                hiddenInput.focus();
+            }, 1000);
+        });
+
+        document.addEventListener('click', () => { hiddenInput.focus(); });
+
+        // Audio Setup
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // Sintesis suara ketikan mekanis
+        function playKeystroke() {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(400 + Math.random() * 100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.03);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.03);
+        }
+
+        // Sintesis distorsi (Error)
+        function playErrorSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // Sintesis suara pernapasan (Brown Noise + LFO)
+        function startBreathing() {
+            const bufferSize = audioCtx.sampleRate * 2; 
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                let white = Math.random() * 2 - 1;
+                output[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = output[i];
+                output[i] *= 3.5;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            noise.loop = true;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            
+            const lfo = audioCtx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.2; // Irama napas (1 siklus per 5 detik)
+            
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 400; 
+
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+            filter.frequency.setValueAtTime(500, audioCtx.currentTime);
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.8;
+
+            noise.connect(filter);
+            filter.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
+            
+            lfo.start();
+            noise.start();
+        }
+
+        function playKnock() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(2.0, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        // Handler Input
+        hiddenInput.addEventListener('input', (e) => {
+            if (mode === 'NORMAL') {
+                output.textContent = hiddenInput.value;
+                playKeystroke();
+            } else if (mode === 'HIJACK') {
+                hiddenInput.value = ''; // Kosongkan input
+                if (charIndex < hijackString.length) {
+                    output.textContent += hijackString[charIndex];
+                    charIndex++;
+                    playKeystroke();
+
+                    if (Math.random() > 0.7) triggerGlitch();
+
+                    if (charIndex === hijackString.length) {
+                        mode = 'CLIMAX';
+                        executeClimax();
+                    }
+                }
+            }
+        });
+
+        // Handler Submit (Tombol Enter)
+        hiddenForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (mode === 'NORMAL') {
+                const cmd = hiddenInput.value;
+                hiddenInput.value = '';
+                output.textContent = '';
+                
+                // Tambahkan perintah ke riwayat
+                historyDiv.innerHTML += `<br><span style="color:#00aa00">root@local:~#</span> ${cmd}`;
+                
+                mode = 'ANOMALY';
+                triggerAnomalySequence();
+            }
+        });
+
+        function triggerAnomalySequence() {
+            playErrorSound();
+            document.body.style.backgroundColor = "#220000"; // Latar belakang berubah merah gelap
+            
+            setTimeout(() => {
+                historyDiv.innerHTML += `<br><span style="color:#ff0000">FATAL ERROR: OVERRIDE DETECTED.</span>`;
+                historyDiv.innerHTML += `<br><span style="color:#ff0000">KONEKSI ASING TERBENTUK.</span>`;
+                
+                promptElement.className = "prompt-anomaly";
+                output.className = "output-anomaly";
+                cursorElement.style.backgroundColor = "#ff0000";
+                
+                startBreathing(); // Mulai suara napas di background
+                mode = 'HIJACK';
+                
+            }, 1000);
+        }
+
+        function triggerGlitch() {
+            glitchLayer.style.opacity = Math.random() * 0.5 + 0.2;
+            glitchLayer.style.transform = `translate(${(Math.random()-0.5)*20}px, ${(Math.random()-0.5)*20}px)`;
+            setTimeout(() => { glitchLayer.style.opacity = '0'; }, 50);
+        }
+
+        function executeClimax() {
+            hiddenInput.blur();
+            
+            setTimeout(() => {
+                blackout.style.display = 'flex'; // Layar mati
+                
+                // Munculkan sepasang mata samar setelah 2 detik di kegelapan
+                setTimeout(() => {
+                    watcher.style.opacity = '1';
+                }, 2000);
+
+                setTimeout(() => {
+                    playKnock(); // Ketukan 1
+                    setTimeout(() => { playKnock(); }, 200); // Ketukan 2
+                    setTimeout(() => { playKnock(); }, 600); // Ketukan 3
+                }, 4000);
+
+            }, 1500);
+        }
+    </script>
+</body>
+</html>

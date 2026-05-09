@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D I A G N O S T I K</title>
+    <style>
+        :root {
+            --hole-x: 50%;
+            --hole-y: 50%;
+            --hole-size: 0px;
+            --hole-blur: 0px;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #000; overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            cursor: crosshair;
+        }
+
+        #init-btn {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #000; color: #00ff00; z-index: 1000;
+            font-size: 1.2rem; cursor: pointer; letter-spacing: 2px;
+        }
+
+        /* Lapisan Bawah: WebGL Daging Organik */
+        #flesh-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; pointer-events: none;
+        }
+
+        /* Lapisan Atas: UI Palsu yang bisa "berlubang" */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #050505; color: #00ff00; z-index: 10;
+            padding: 40px; box-sizing: border-box;
+            /* Ini menciptakan lubang transparan yang mengungkap lapisan WebGL di bawahnya */
+            mask-image: radial-gradient(circle at var(--hole-x) var(--hole-y), transparent var(--hole-size), black calc(var(--hole-size) + var(--hole-blur)));
+            -webkit-mask-image: radial-gradient(circle at var(--hole-x) var(--hole-y), transparent var(--hole-size), black calc(var(--hole-size) + var(--hole-blur)));
+        }
+
+        .sys-text {
+            font-size: 14px; line-height: 1.8; opacity: 0.8;
+        }
+        
+        .header { font-size: 24px; margin-bottom: 20px; font-weight: bold; border-bottom: 1px solid #00ff00; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <div id="init-btn">MENUNGGU OTORISASI... [KLIK]</div>
+
+    <canvas id="flesh-layer"></canvas>
+
+    <div id="ui-layer">
+        <div class="header">SYS_DIAGNOSTIC_TOOL_v4.2</div>
+        <div class="sys-text">
+            Memuat modul kernel... OK<br>
+            Memeriksa integritas memori... OK<br>
+            Memindai anomali jaringan... OK<br><br>
+            STATUS: SISTEM BERJALAN NORMAL.<br>
+            Tidak ada infeksi terdeteksi.<br>
+            Protokol keamanan aktif.<br><br>
+            [Peringatan]: Harap jangan menatap satu titik terlalu lama.<br>
+            Piksel pada monitor Anda berpotensi mengalami kelelahan struktural.<br>
+            Terus gerakkan kursor Anda untuk menjaga sirkulasi data.<br>
+            <br><br><br>
+            <span id="dynamic-log">Menunggu input analitik...</span>
+        </div>
+    </div>
+
+    <script>
+        const initBtn = document.getElementById('init-btn');
+        const uiLayer = document.getElementById('ui-layer');
+        const canvas = document.getElementById('flesh-layer');
+        const gl = canvas.getContext('webgl');
+        const dynamicLog = document.getElementById('dynamic-log');
+
+        let audioCtx;
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let targetHoleSize = 0;
+        let currentHoleSize = 0;
+        let isIdle = false;
+        let idleTimer;
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        initBtn.addEventListener('click', () => {
+            initBtn.style.display = 'none';
+            initAudio();
+            initShader();
+            trackMouse();
+        });
+
+        // Logika Peluruhan UI (Lubang yang membesar saat diam)
+        function trackMouse() {
+            document.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                
+                // Update posisi CSS Mask
+                document.documentElement.style.setProperty('--hole-x', mouseX + 'px');
+                document.documentElement.style.setProperty('--hole-y', mouseY + 'px');
+
+                // Jika mouse bergerak, lubang mengecil (sembuh)
+                targetHoleSize = 0;
+                clearTimeout(idleTimer);
+                isIdle = false;
+                dynamicLog.innerText = "Sirkulasi data stabil. Memantau...";
+
+                // Jika diam selama 1.5 detik, lubang mulai membesar
+                idleTimer = setTimeout(() => {
+                    isIdle = true;
+                    targetHoleSize = 250; // Radius lubang maksimal
+                    dynamicLog.innerText = "ANOMALI: KORUPSI STRUKTURAL TERDETEKSI DI KOORDINAT [" + mouseX + ", " + mouseY + "]";
+                    playSquishSound();
+                }, 1500);
+            });
+
+            // Loop animasi untuk memperhalus transisi ukuran lubang
+            function animateHole() {
+                // Interpolasi nilai untuk efek meleleh
+                currentHoleSize += (targetHoleSize - currentHoleSize) * 0.05;
+                
+                document.documentElement.style.setProperty('--hole-size', currentHoleSize + 'px');
+                document.documentElement.style.setProperty('--hole-blur', (currentHoleSize * 0.5 + 20) + 'px');
+                
+                requestAnimationFrame(animateHole);
+            }
+            animateHole();
+        }
+
+        // Web Audio API: Suara Organik
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Ominous Drone bawah sadar
+            const drone = audioCtx.createOscillator();
+            const droneGain = audioCtx.createGain();
+            drone.type = 'sine';
+            drone.frequency.value = 45; // Sub-bass
+            droneGain.gain.value = 0.2;
+            drone.connect(droneGain);
+            droneGain.connect(audioCtx.destination);
+            drone.start();
+        }
+
+        // Menyintesis suara basah/daging robek saat layar berlubang
+        function playSquishSound() {
+            if (!audioCtx || !isIdle) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(50, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.5);
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
+
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.6);
+
+            // Ulangi suara secara sporadis jika masih idle
+            if (isIdle) {
+                setTimeout(playSquishSound, Math.random() * 800 + 400);
+            }
+        }
+
+        // WebGL: Shader Jaringan Daging/Organik Berdenyut
+        function initShader() {
+            const vsSource = `
+                attribute vec2 position;
+                void main() { gl_Position = vec4(position, 0.0, 1.0); }
+            `;
+
+            const fsSource = `
+                precision highp float;
+                uniform vec2 u_resolution;
+                uniform float u_time;
+
+                // Fungsi noise fraktal kompleks (fBM)
+                float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+                float noise(vec2 p) {
+                    vec2 i = floor(p), f = fract(p);
+                    vec2 u = f * f * (3.0 - 2.0 * f);
+                    return mix(mix(hash(i + vec2(0.0,0.0)), hash(i + vec2(1.0,0.0)), u.x),
+                               mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), u.x), u.y);
+                }
+                float fbm(vec2 p) {
+                    float v = 0.0, a = 0.5;
+                    mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+                    for (int i = 0; i < 5; i++) {
+                        v += a * noise(p); p = rot * p * 2.0 + vec2(100.0); a *= 0.5;
+                    }
+                    return v;
+                }
+
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+                    uv = uv * 2.0 - 1.0;
+                    uv.x *= u_resolution.x / u_resolution.y;
+
+                    // Pergerakan organik yang pelan dan berdenyut
+                    vec2 q = vec2(0.);
+                    q.x = fbm(uv + 0.00 * u_time);
+                    q.y = fbm(uv + vec2(1.0));
+
+                    vec2 r = vec2(0.);
+                    r.x = fbm(uv + 1.0 * q + vec2(1.7, 9.2) + 0.15 * u_time);
+                    r.y = fbm(uv + 1.0 * q + vec2(8.3, 2.8) + 0.126 * u_time);
+
+                    float f = fbm(uv + r);
+
+                    // Pewarnaan jaringan biologis (Merah gelap, ungu memar, dan hitam)
+                    vec3 color = mix(vec3(0.1, 0.0, 0.0), vec3(0.4, 0.0, 0.1), clamp((f*f)*4.0, 0.0, 1.0));
+                    color = mix(color, vec3(0.0, 0.0, 0.0), clamp(length(q), 0.0, 1.0));
+                    color = mix(color, vec3(0.6, 0.1, 0.1), clamp(length(r.x), 0.0, 1.0));
+
+                    // Menambahkan detail urat/pembuluh yang berdenyut
+                    float pulse = sin(u_time * 2.0) * 0.5 + 0.5;
+                    color += vec3(0.2, 0.0, 0.0) * (1.0 - f) * pulse;
+
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `;
+
+            function createShader(gl, type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                return shader;
+            }
+
+            const program = gl.createProgram();
+            gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+            gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+            gl.linkProgram(program);
+            gl.useProgram(program);
+
+            const posBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+            
+            const posLoc = gl.getAttribLocation(program, "position");
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const resLoc = gl.getUniformLocation(program, "u_resolution");
+            const timeLoc = gl.getUniformLocation(program, "u_time");
+
+            function render(time) {
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.uniform2f(resLoc, canvas.width, canvas.height);
+                gl.uniform1f(timeLoc, time * 0.001);
+                
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                requestAnimationFrame(render);
+            }
+            requestAnimationFrame(render);
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
